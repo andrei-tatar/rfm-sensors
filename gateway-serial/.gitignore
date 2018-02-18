@@ -1,0 +1,6 @@
+/FLASH
+/Generated_Code
+/Documentation
+*.g_c
+*.g_x
+ProjectInfo.xml
