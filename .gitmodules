@@ -1,3 +1,6 @@
 [submodule "gateway-serial/Sources/radio"]
 	path = gateway-serial/Sources/radio
 	url = git@github.com:andrei-tatar/RFM69.git
+[submodule "sensor-template/lib/rfm69"]
+	path = sensor-template/lib/rfm69
+	url = git@github.com:andrei-tatar/RFM69.git
