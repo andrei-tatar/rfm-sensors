@@ -39,9 +39,9 @@ void sendBlock(const uint8_t *data, uint16_t size) {
 	  head = add;
 	  tail = add;
   }
+  ExitCritical();
   
   UART0_PDD_EnableInterrupt(UART0_BASE_PTR, UART0_PDD_INTERRUPT_TRANSMITTER); /* Enable TX interrupt */
-  ExitCritical();
 }
 
 static void InterruptTx()
@@ -51,10 +51,13 @@ static void InterruptTx()
 	  head->sent++;
 	  if (head->sent == head->size) {
 		  SendQueue* oldHead = head;
+		  
+		  EnterCritical();
 		  head = head->next;
 		  if (head == NULL) {
 		  	tail = NULL;
 		  }
+		  ExitCritical();
 		  	
 		  free(oldHead->data);
 		  free(oldHead);

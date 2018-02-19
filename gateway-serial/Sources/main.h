@@ -9,10 +9,13 @@
 #define MAIN_H_
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "hal.h"
+#include "main.h"
 
 void setup(void);
 void loop(void);
-
-void onAdcMeasurementComplete();
 
 #endif /* MAIN_H_ */

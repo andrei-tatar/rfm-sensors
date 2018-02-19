@@ -1,10 +1,7 @@
-#include "hal.h"
 #include "main.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include "radio/RFM69.h"
 
-RFM69 radio(true);
+RFM69 radio(spi_Transfer, true);
 bool inited = false;
 
 void setup() {
@@ -16,11 +13,11 @@ void setup() {
 }
 
 void loop() {
-	if (radio.receiveDone()) {
+	/*if (radio.receiveDone()) {
 		char data[100];
 		int size = sprintf(data, "F: %d, L: %d, R: %d, %s\r\n", radio.SENDERID, radio.DATALEN, radio.RSSI, radio.DATA);
 		sendBlock((uint8_t*)data, size);
-	}
+	}*/
 	
 	static uint32_t next;
 	if (millis() > next) {
@@ -37,8 +34,13 @@ void loop() {
 }
 
 PE_ISR(portDInterrupt) {
+	static RfmPacket packet;
 	if (PORT_PDD_GetPinInterruptFlag(PORTD_BASE_PTR, 4)) {
 		PORT_PDD_ClearPinInterruptFlag(PORTD_BASE_PTR, 4);
-		radio.interrupt();
+		packet.size = 0;
+		radio.interrupt(packet);
+		if (packet.size) {
+			
+		}
 	}
 }
