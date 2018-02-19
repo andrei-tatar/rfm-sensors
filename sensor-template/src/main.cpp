@@ -13,12 +13,18 @@ void radioInterrupt()
 
 void setup()
 {
+    Serial.begin(115200);
+
     digitalWrite(SS, HIGH);
     pinMode(SS, OUTPUT);
+
     SPI.begin();
     SPI.setDataMode(SPI_MODE0);
     SPI.setBitOrder(MSBFIRST);
     SPI.setClockDivider(SPI_CLOCK_DIV4);
+
+    radio.initialize(RF69_433MHZ, 2);
+
     attachInterrupt(0, radioInterrupt, RISING);
 }
 
@@ -33,16 +39,18 @@ void loop()
         char buf[40];
         static int count = 0;
         auto size = sprintf(buf, "%d", count++);
-        radio.send(1, buf, size);
+        radio.send(1, (uint8_t *)buf, size);
+        Serial.print("SENT");
     }
 }
 
 void spi_Transfer(uint8_t *data, uint8_t len)
 {
     digitalWrite(SS, LOW);
-    while (len--) {
+    while (len--)
+    {
         *data = SPI.transfer(*data);
-		data++;
-	}
+        data++;
+    }
     digitalWrite(SS, HIGH);
 }
