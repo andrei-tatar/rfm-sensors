@@ -1,56 +1,39 @@
 #include <Arduino.h>
-#include <SPI.h>
-#include "RFM69.h"
+#include <sensor.h>
 
-void spi_Transfer(uint8_t *data, uint8_t len);
-RFM69 radio(spi_Transfer, millis, true);
+#define LED 9
 
-void radioInterrupt()
+Sensor sensor(2);
+
+void onDataReceived(const uint8_t *data, uint8_t size)
 {
-    RfmPacket packet;
-    radio.interrupt(packet);
+    Serial.print("Recevied: ");
+    while (size--)
+        Serial.print(*data++, HEX);
+    Serial.println();
 }
 
 void setup()
 {
     Serial.begin(115200);
-
-    digitalWrite(SS, HIGH);
-    pinMode(SS, OUTPUT);
-
-    SPI.begin();
-    SPI.setDataMode(SPI_MODE0);
-    SPI.setBitOrder(MSBFIRST);
-    SPI.setClockDivider(SPI_CLOCK_DIV4);
-
-    radio.initialize(RF69_433MHZ, 2);
-
-    attachInterrupt(0, radioInterrupt, RISING);
+    pinMode(LED, OUTPUT);
+    sensor.onMessage(onDataReceived);
 }
 
 void loop()
 {
-    static uint32_t next;
-    uint32_t now = millis();
-
-    if (now > next)
+    static uint32_t nextSend;
+    if (millis() > nextSend)
     {
-        next = now + 1000;
-        char buf[40];
-        static int count = 0;
-        auto size = sprintf(buf, "%d", count++);
-        radio.send(1, (uint8_t *)buf, size);
-        Serial.print("SENT");
+        nextSend = millis() + 3000;
+        const char *send = "Hello from sensor";
+        if (sensor.sendAndWait((uint8_t *)send, strlen(send)))
+        {
+            digitalWrite(LED, HIGH);
+            delay(100);
+            digitalWrite(LED, LOW);
+        }
     }
-}
 
-void spi_Transfer(uint8_t *data, uint8_t len)
-{
-    digitalWrite(SS, LOW);
-    while (len--)
-    {
-        *data = SPI.transfer(*data);
-        data++;
-    }
-    digitalWrite(SS, HIGH);
+    sensor.update();
 }
