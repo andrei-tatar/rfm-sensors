@@ -10,6 +10,7 @@ void setup() {
 	char data[100];
 	int size = sprintf(data, "Radio inited: %d\r\n", init);
 	sendBlock((uint8_t*)data, size);
+	radio.receiveBegin();
 }
 
 void loop() {
@@ -17,6 +18,7 @@ void loop() {
 	if (millis() > next) {
 		next = millis() + 5000;
 		radio.send(2, (uint8_t*)"Hi2", 3);
+		radio.receiveBegin();
 	}
 }
 
