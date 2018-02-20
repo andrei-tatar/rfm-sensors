@@ -11,9 +11,32 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hal.h"
-#include "main.h"
+#include "radio/RFM69.h"
+#include "util.h"
+#include "queue.h"
+
+typedef struct {
+	uint8_t *data;
+	uint8_t rssi;
+	uint8_t size;
+	uint8_t from;
+} RxPacket;
+
+typedef struct {
+	uint32_t nextSendNonce;
+	uint32_t oldReceiveNonce, nextReceiveNonce;
+	uint8_t *data, size, retries;
+	uint32_t lastSendTime;
+} SensorState;
+
+typedef enum {
+    Data = 0x01,
+    Ack = 0x02,
+    Nack = 0x03,
+} MsgType;
 
 void setup(void);
 void loop(void);
