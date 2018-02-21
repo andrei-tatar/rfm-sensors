@@ -33,6 +33,17 @@ void loop()
             delay(100);
             digitalWrite(LED, LOW);
         }
+        else
+        {
+            uint8_t c = 3;
+            while (c--)
+            {
+                digitalWrite(LED, HIGH);
+                delay(100);
+                digitalWrite(LED, LOW);
+                delay(100);
+            }
+        }
     }
 
     sensor.update();
