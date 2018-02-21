@@ -103,7 +103,7 @@ void onRadioPacketReceived(RxPacket &packet) {
 		sendResponse(sensor, packet.from, packet.rssi, nonce, true);
 
 		//TODO: queue data on serial port
-		debugHex("RX msg:%s\r\n", data, size);
+		debugHex("RXM", data, size);
 	}
 		break;
 	case MsgType::Ack: {
