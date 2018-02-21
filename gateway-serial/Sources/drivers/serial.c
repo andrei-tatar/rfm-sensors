@@ -26,12 +26,24 @@ void sendBlock(const uint8_t *data, uint16_t size) {
 		return;
 	}
 
+	__DI();
 	auto add = (SendPacket*) malloc(sizeof(SendPacket));
+	if (add == NULL) {
+		__EI();
+		return;
+	}
 	add->data = (uint8_t*) malloc(size);
+	if (add->data == NULL) {
+		free(add);
+		__EI();
+		return;
+	}
+			
 	memcpy(add->data, data, size);
 	add->size = size;
 	add->sent = 0;
 	sendPackets.push(add);
+	__EI();
 
 	/* Enable TX interrupt */
 	UART0_PDD_EnableInterrupt(UART0_BASE_PTR, UART0_PDD_INTERRUPT_TRANSMITTER);
@@ -40,10 +52,14 @@ void sendBlock(const uint8_t *data, uint16_t size) {
 static void InterruptTx() {
 	auto current = sendPackets.peek();
 	if (current) {
-		UART0_PDD_PutChar8(UART0_BASE_PTR, current->data[current->sent]);
-		current->sent++;
+		UART0_PDD_PutChar8(UART0_BASE_PTR, current->data[current->sent++]);
 		if (current->sent == current->size) {
+			__DI();
 			sendPackets.pop();
+			free(current->data);
+			free(current);
+			__EI();
+			
 		}
 	} else {
 		/* Disable TX interrupt */

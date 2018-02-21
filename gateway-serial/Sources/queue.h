@@ -21,7 +21,7 @@ class Queue {
 public:
 	T pop();
 	T peek();
-	void push(T value);
+	bool push(T value);
 private:
 	volatile QueueLink<T> *head = NULL, *tail = NULL;
 };
@@ -29,33 +29,34 @@ private:
 
 template<class T>
 T Queue<T>::pop() {
-	if (head == NULL) return NULL;
+	if (head == NULL) {
+		return NULL;
+	}
 	
-	auto oldHead = head;
-	EnterCritical();
+	auto oldHead = (QueueLink<T>*)head;
 	head = head->next;
 	if (head == NULL) {
 		tail = NULL;
 	}
-	ExitCritical();
 	
-	const T value = oldHead->value;
-	free((void*)oldHead);
+	T value = oldHead->value;
+	free(oldHead);
 	return value;
 }
 
 template<class T>
 T Queue<T>::peek() {
-	T headCopy = (T)head;
-	return headCopy;
+	auto h = head;
+	return h == NULL ? NULL : h->value;
 } 
 
 template<class T>
-void Queue<T>::push(T value) {
+bool Queue<T>::push(T value) {
 	auto add = (QueueLink<T>*)malloc(sizeof(QueueLink<T>));
+	if (add == NULL) return false;
+	add->next = NULL;
 	add->value = value;
 	
-	EnterCritical();
 	if (tail != NULL) {
 		tail->next = add;
 		tail = add;
@@ -63,7 +64,7 @@ void Queue<T>::push(T value) {
 		head = add;
 		tail = add;
 	}
-	ExitCritical();
+	return true;
 }
 
 #endif /* QUEUE_ */
