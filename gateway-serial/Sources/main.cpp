@@ -19,6 +19,7 @@ static SensorState sensors[253]; //0 is addr 2
 #define FRAME_ERR_TIMEOUT           0x72
 #define FRAME_ERR_OTHER				0x79
 
+#if DEBUG
 void debug(const char* format, ...) {
 	char dest[200];
 	va_list argptr;
@@ -34,6 +35,10 @@ void debugHex(const char* prefix, uint8_t addr, uint8_t* data, uint8_t size) {
 		debug("%02x ", *data++);
 	debug("\r\n");
 }
+#else
+#define debug(f, ...)
+#define debugHex(a, b, c, d)
+#endif
 
 void setup() {
 	for (uint8_t i = 0; i < SENSORS; i++) {

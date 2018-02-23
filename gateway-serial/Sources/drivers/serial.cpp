@@ -153,9 +153,11 @@ static void InterruptRx() {
 		if (chksum == rxChksum) {
 			__DI();
 			auto packet = (RxSerial*) malloc(sizeof(RxSerial));
-			packet->data = buffer;
-			packet->size = size;
-			rxPackets.push(packet);
+			if (packet != NULL) {
+				packet->data = buffer;
+				packet->size = size;
+				rxPackets.push(packet);
+			}
 			__EI();
 		} else {
 			free(buffer);
