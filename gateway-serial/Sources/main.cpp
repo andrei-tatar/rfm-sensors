@@ -6,8 +6,18 @@ bool inited = false;
 #define SEND_RETRIES 	10
 #define RETRY_INTERVAL 	50
 static Queue<RxPacket*> radioPackets;
-static SensorState sensors[253];
+static SensorState sensors[253]; //0 is addr 2
 #define SENSORS sizeof(sensors) / sizeof(SensorState)
+
+#define FRAME_CONFIGURE             0x90
+#define FRAME_CONFIGURED            0x91
+#define FRAME_SENDPACKET            0x92
+#define FRAME_PACKETSENT            0x93
+#define FRAME_RECEIVEPACKET         0x94
+
+#define FRAME_ERR_INVALID_SIZE      0x71
+#define FRAME_ERR_TIMEOUT           0x72
+#define FRAME_ERR_OTHER				0x79
 
 void debug(const char* format, ...) {
 	char dest[200];
@@ -15,11 +25,11 @@ void debug(const char* format, ...) {
 	va_start(argptr, format);
 	auto size = vsprintf(dest, format, argptr);
 	va_end(argptr);
-	sendBlock((uint8_t*) dest, size);
+	serialSendRaw((uint8_t*) dest, size);
 }
 
-void debugHex(const char* prefix, uint8_t* data, uint8_t size) {
-	debug("%s:", prefix);
+void debugHex(const char* prefix, uint8_t addr, uint8_t* data, uint8_t size) {
+	debug("%s(%d):", prefix, addr);
 	while (size--)
 		debug("%02x ", *data++);
 	debug("\r\n");
@@ -35,7 +45,6 @@ void setup() {
 	bool init = radio.initialize(RF69_433MHZ, 1);
 	inited = true;
 	debug("Radio inited: %d\r\n", init);
-	radio.receiveBegin();
 }
 
 void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
@@ -46,17 +55,14 @@ void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
 	writeNonce(&data[5], sensor.nextReceiveNonce);
 	data[9] = rssi;
 	radio.send(to, data, sizeof(data));
-	debugHex("TX", data, sizeof(data));
-	radio.receiveBegin();
+	debugHex("TX", to, data, sizeof(data));
 }
 
 void sendDone(SensorState &sensor) {
 	if (sensor.data) {
-		__DI()
-		;
+		__DI();
 		free(sensor.data);
-		__EI()
-		;
+		__EI();
 	}
 	sensor.data = NULL;
 	sensor.retries = 0;
@@ -68,12 +74,44 @@ void sendData(SensorState& sensor, uint8_t to) {
 		return;
 	writeNonce(&sensor.data[1], sensor.nextSendNonce);
 	radio.send(to, sensor.data, sensor.size);
-	radio.receiveBegin();
+	debugHex("TX", to, sensor.data, sensor.size);
 	sensor.lastSendTime = millis();
 }
 
+bool send(uint8_t to, const uint8_t *data, uint8_t size)
+{
+	SensorState &sensor = sensors[to - 2];
+    sendDone(sensor);
+    sensor.size = size + 5;
+    sensor.data = (uint8_t *)malloc(sensor.size);
+    if (sensor.data == NULL)
+        return false;
+    sensor.data[0] = MsgType::Data;
+    sensor.retries = SEND_RETRIES;
+    memcpy(&sensor.data[5], data, size);
+    sendData(sensor, to);
+    return true;
+}
+
+void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
+	size--;
+	switch (*data++) {
+	case FRAME_SENDPACKET:
+		size--;
+		uint8_t to = *data++;
+		if (to < 2) {
+			serialSendFrame(FRAME_ERR_OTHER, to, NULL, 0);
+			return;
+		}
+		if (!send(to, data, size)) {
+			serialSendFrame(FRAME_ERR_OTHER, to, NULL, 0);
+		}
+		break;
+	}
+}
+
 void onRadioPacketReceived(RxPacket &packet) {
-	SensorState& sensor = sensors[packet.from - 1];
+	SensorState& sensor = sensors[packet.from - 2];
 	auto data = packet.data;
 	auto size = packet.size;
 
@@ -101,9 +139,7 @@ void onRadioPacketReceived(RxPacket &packet) {
 			sensor.nextReceiveNonce = createNonce();
 		} while (sensor.nextReceiveNonce == sensor.oldReceiveNonce);
 		sendResponse(sensor, packet.from, packet.rssi, nonce, true);
-
-		//TODO: queue data on serial port
-		debugHex("RXM", data, size);
+		serialSendFrame(FRAME_RECEIVEPACKET, packet.from, data, size);
 	}
 		break;
 	case MsgType::Ack: {
@@ -113,8 +149,7 @@ void onRadioPacketReceived(RxPacket &packet) {
 
 		sensor.nextSendNonce = readNonce(&data[4]);
 		sendDone(sensor);
-		//TODO: send ok for this on serial port
-
+		serialSendFrame(FRAME_PACKETSENT, packet.from, NULL, 0);
 	}
 		break;
 	case MsgType::Nack: {
@@ -131,20 +166,33 @@ void onRadioPacketReceived(RxPacket &packet) {
 }
 
 void loop() {
-	__DI()
-	;
-	auto rxPacket = radioPackets.pop();
-	__EI()
-	;
-	if (rxPacket != NULL) {
-		onRadioPacketReceived(*rxPacket);
-		__DI()
-		;
-		free(rxPacket->data);
-		free(rxPacket);
-		__EI()
-		;
-	}
+	do {
+		__DI();
+		auto rxPacket = radioPackets.pop();
+		__EI();
+		if (rxPacket != NULL) {
+			onRadioPacketReceived(*rxPacket);
+			__DI();
+			free(rxPacket->data);
+			free(rxPacket);
+			__EI();
+		} else
+			break;
+	} while (true);
+	
+	do {
+		__DI();
+		auto serialPacket = rxPackets.pop();
+		__EI();
+		if (serialPacket != NULL) {
+			onSerialPacketReceived(serialPacket->data, serialPacket->size);
+			__DI();
+			free(serialPacket->data);
+			free(serialPacket);
+			__EI();
+		} else
+			break;
+	} while (true);
 
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		SensorState &sensor = sensors[i];
@@ -152,9 +200,9 @@ void loop() {
 			sensor.retries--;
 			if (sensor.retries == 0) {
 				sendDone(sensor);
-				//TODO: send timeout on serial
+				serialSendFrame(FRAME_ERR_TIMEOUT, i + 2, NULL, 0);
 			} else {
-				sendData(sensor, i + 1);
+				sendData(sensor, i + 2);
 			}
 		}
 	}
@@ -168,24 +216,20 @@ PE_ISR(portDInterrupt) {
 			return;
 		packet.size = 0;
 		radio.interrupt(packet);
-		radio.receiveBegin();
 
-		if (packet.size) {
-			debugHex("RX", packet.data, packet.size);
+		if (packet.size && packet.from >= 2) {
+			debugHex("RX", packet.from, packet.data, packet.size);
 
-			__DI()
-			;
+			__DI();
 			auto add = (RxPacket*) malloc(sizeof(RxPacket));
 			if (add == NULL) {
-				__EI()
-				;
+				__EI();
 				return;
 			}
 			add->data = (uint8_t*) malloc(packet.size);
 			if (add->data == NULL) {
 				free(add);
-				__EI()
-				;
+				__EI();
 				return;
 			}
 			memcpy(add->data, packet.data, packet.size);
@@ -193,8 +237,7 @@ PE_ISR(portDInterrupt) {
 			add->rssi = packet.rssi;
 			add->from = packet.from;
 			radioPackets.push(add);
-			__EI()
-			;
+			__EI();
 		}
 	}
 }

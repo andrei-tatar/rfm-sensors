@@ -9,6 +9,7 @@
 #define QUEUE_
 
 #include <stddef.h>
+#include <stdlib.h>
 
 template<class T>
 struct QueueLink {

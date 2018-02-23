@@ -17,6 +17,7 @@
 #include "radio/RFM69.h"
 #include "util.h"
 #include "queue.h"
+#include "serial.h"
 
 typedef struct {
 	uint8_t *data;
