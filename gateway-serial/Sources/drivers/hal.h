@@ -18,7 +18,6 @@
 #define noInterrupts() ExitCritical()
 
 void delay(uint16_t msec);
-void delay_us(uint32_t usec);
 uint32_t millis();
 
 #endif /* HAL_H_ */

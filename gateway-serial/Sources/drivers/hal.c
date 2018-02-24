@@ -15,15 +15,6 @@ void delay(uint16_t msec)
 	while (endTime > time);
 }
 
-void delay_us(uint32_t usec)
-{
-	while (usec--)
-	{
-		PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();
-		PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();PE_NOP();
-	}
-}
-
 PE_ISR(sysTickTimerInterrupt)
 {
 	time += 1;
