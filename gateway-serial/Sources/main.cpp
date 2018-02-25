@@ -103,7 +103,7 @@ bool send(uint8_t to, const uint8_t *data, uint8_t size) {
 void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 	size--;
 	switch (*data++) {
-	case FRAME_SENDPACKET:
+	case FRAME_SENDPACKET: {
 		size--;
 		uint8_t to = *data++;
 		if (to < 2) {
@@ -113,6 +113,37 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 		if (!send(to, data, size)) {
 			serialSendFrame(FRAME_ERR_OTHER, to, NULL, 0);
 		}
+	}
+		break;
+	case FRAME_CONFIGURE: {
+		while (size) {
+			size--;
+			switch (*data++) {
+			case 'K': //encryption key
+				radio.encrypt(data);
+				data += 16;
+				size -= 16;
+				break;
+			case 'F': //frequency
+				radio.setFrequency(readNonce(data));
+				data += 4;
+				size -= 4;
+				break;
+			case 'N': //network ID
+				radio.setNetwork(*data++);
+				size--;
+				break;
+			case 'P':
+				radio.setPowerLevel(*data++);
+				size--;
+				break;
+			default:
+				size = 0;
+				break;
+			}
+		}
+		serialSendFrame(FRAME_CONFIGURED, 0, NULL, 0);
+	}
 		break;
 	}
 }
