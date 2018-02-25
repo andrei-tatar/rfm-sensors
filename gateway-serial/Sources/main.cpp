@@ -85,9 +85,12 @@ void sendData(SensorState& sensor, uint8_t to) {
 
 bool send(uint8_t to, const uint8_t *data, uint8_t size) {
 	SensorState &sensor = sensors[to - 2];
-	sendDone(sensor);
+	if (sensor.retries)
+		return false;
 	sensor.size = size + 5;
+	noInterrupts();
 	sensor.data = (uint8_t *) malloc(sensor.size);
+	interrupts();
 	if (sensor.data == NULL)
 		return false;
 	sensor.data[0] = MsgType::Data;
