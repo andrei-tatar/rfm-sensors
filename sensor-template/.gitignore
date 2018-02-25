@@ -4,3 +4,4 @@
 .vscode/launch.json
 .travis.yml
 lib/readme.txt
+.vscode/*.db
