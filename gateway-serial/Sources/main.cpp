@@ -65,11 +65,9 @@ void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
 
 void sendDone(SensorState &sensor) {
 	if (sensor.data) {
-		__DI()
-		;
+		noInterrupts();
 		free(sensor.data);
-		__EI()
-		;
+		interrupts();
 	}
 	sensor.data = NULL;
 	sensor.retries = 0;
@@ -173,39 +171,33 @@ void onRadioPacketReceived(RxPacket &packet) {
 
 void loop() {
 	do {
-		__DI()
-		;
+		noInterrupts();
 		auto rxPacket = radioPackets.pop();
-		__EI()
-		;
+		interrupts();
 		if (rxPacket != NULL) {
 			//debugHex("RX", packet.from, packet.data, packet.size);
-			for (volatile uint32_t i=0;i<800;i++); //give the sender a chance to start receiving
+			for (volatile uint32_t i = 0; i < 800; i++) {
+				//give the sender a chance to start receiving
+			}
 			onRadioPacketReceived(*rxPacket);
-			__DI()
-			;
+			noInterrupts();
 			free(rxPacket->data);
 			free(rxPacket);
-			__EI()
-			;
+			interrupts();
 		} else
 			break;
 	} while (true);
 
 	do {
-		__DI()
-		;
+		noInterrupts();
 		auto serialPacket = rxPackets.pop();
-		__EI()
-		;
+		interrupts();
 		if (serialPacket != NULL) {
 			onSerialPacketReceived(serialPacket->data, serialPacket->size);
-			__DI()
-			;
+			noInterrupts();
 			free(serialPacket->data);
 			free(serialPacket);
-			__EI()
-			;
+			interrupts();
 		} else
 			break;
 	} while (true);
@@ -234,19 +226,16 @@ PE_ISR(portDInterrupt) {
 		radio.interrupt(packet);
 
 		if (packet.size && packet.from >= 2) {
-			__DI()
-			;
+			noInterrupts();
 			auto add = (RxPacket*) malloc(sizeof(RxPacket));
 			if (add == NULL) {
-				__EI()
-				;
+				interrupts();
 				return;
 			}
 			add->data = (uint8_t*) malloc(packet.size);
 			if (add->data == NULL) {
 				free(add);
-				__EI()
-				;
+				interrupts();
 				return;
 			}
 			memcpy(add->data, packet.data, packet.size);
@@ -254,8 +243,7 @@ PE_ISR(portDInterrupt) {
 			add->rssi = packet.rssi;
 			add->from = packet.from;
 			radioPackets.push(add);
-			__EI()
-			;
+			interrupts();
 		}
 	}
 }

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <queue.h>
 #include "serial.h"
+#include "hal.h"
 
 typedef struct {
 	uint8_t* data;
@@ -20,12 +21,7 @@ typedef struct {
 } SendPacket;
 
 typedef enum {
-	Idle, 
-	Hdr, 
-	Size, 
-	Data, 
-	Chk1, 
-	Chk2
+	Idle, Hdr, Size, Data, Chk1, Chk2
 } RxStatus;
 
 #define FRAME_HEADER_1  0xDE
@@ -51,7 +47,8 @@ static uint16_t getChecksum(uint8_t *data, uint8_t length) {
 	return checksum;
 }
 
-void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data, uint8_t size) {
+void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data,
+		uint8_t size) {
 	uint8_t packet[5 + size + 2];
 	packet[0] = FRAME_HEADER_1;
 	packet[1] = FRAME_HEADER_2;
@@ -73,16 +70,16 @@ void serialSendRaw(const uint8_t *data, uint8_t size) {
 		return;
 	}
 
-	__DI();
+	noInterrupts();
 	auto add = (SendPacket*) malloc(sizeof(SendPacket));
 	if (add == NULL) {
-		__EI();
+		interrupts();
 		return;
 	}
 	add->data = (uint8_t*) malloc(size);
 	if (add->data == NULL) {
 		free(add);
-		__EI();
+		interrupts();
 		return;
 	}
 
@@ -90,7 +87,7 @@ void serialSendRaw(const uint8_t *data, uint8_t size) {
 	add->size = size;
 	add->sent = 0;
 	txPackets.push(add);
-	__EI();
+	interrupts();
 
 	/* Enable TX interrupt */
 	UART0_PDD_EnableInterrupt(UART0_BASE_PTR, UART0_PDD_INTERRUPT_TRANSMITTER);
@@ -101,11 +98,11 @@ static void InterruptTx() {
 	if (current) {
 		UART0_PDD_PutChar8(UART0_BASE_PTR, current->data[current->sent++]);
 		if (current->sent == current->size) {
-			__DI();
+			noInterrupts();
 			txPackets.pop();
 			free(current->data);
 			free(current);
-			__EI();
+			interrupts();
 
 		}
 	} else {
@@ -132,7 +129,7 @@ static void InterruptRx() {
 		break;
 	case RxStatus::Size:
 		size = data;
-		buffer = (uint8_t*)malloc(size);
+		buffer = (uint8_t*) malloc(size);
 		status = buffer == NULL ? RxStatus::Idle : RxStatus::Data;
 		chksum = CHKSUM_INIT;
 		offset = 0;
@@ -151,14 +148,14 @@ static void InterruptRx() {
 	case RxStatus::Chk2:
 		rxChksum |= data;
 		if (chksum == rxChksum) {
-			__DI();
+			noInterrupts();
 			auto packet = (RxSerial*) malloc(sizeof(RxSerial));
 			if (packet != NULL) {
 				packet->data = buffer;
 				packet->size = size;
 				rxPackets.push(packet);
 			}
-			__EI();
+			interrupts();
 		} else {
 			free(buffer);
 		}
@@ -179,7 +176,7 @@ PE_ISR(USART_Interrupt) {
 	if (StatReg & ERROR_FLAG) {
 		UART0_PDD_ClearInterruptFlags(UART0_BASE_PTR, ERROR_FLAG);
 		UART0_PDD_GetChar8(UART0_BASE_PTR);
-		StatReg &= (uint32_t)(~(uint32_t) UART0_S1_RDRF_MASK);
+		StatReg &= (uint32_t) (~(uint32_t) UART0_S1_RDRF_MASK);
 	}
 	if (StatReg & UART0_S1_RDRF_MASK) { /* Is the receiver's interrupt flag set? */
 		InterruptRx();

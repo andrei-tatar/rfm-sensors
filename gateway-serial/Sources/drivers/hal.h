@@ -14,8 +14,8 @@
 #include "serial.h"
 #include "PORT_PDD.h"
 
-#define interrupts() EnterCritical()
-#define noInterrupts() ExitCritical()
+inline void interrupts() { __EI(); }
+inline void noInterrupts() { __DI(); }
 
 void delay(uint16_t msec);
 uint32_t millis();
