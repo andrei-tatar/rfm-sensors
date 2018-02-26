@@ -16,8 +16,10 @@ static SensorState sensors[253]; //0 is addr 2
 #define FRAME_RECEIVEPACKET         0x94
 
 #define FRAME_ERR_INVALID_SIZE      0x71
-#define FRAME_ERR_TIMEOUT           0x72
-#define FRAME_ERR_OTHER				0x79
+#define FRAME_ERR_BUSY				0x72
+#define FRAME_ERR_ADDR				0x73
+#define FRAME_ERR_MEM				0x74
+#define FRAME_ERR_TIMEOUT           0x75
 
 #define DEBUG 0
 
@@ -83,21 +85,21 @@ void sendData(SensorState& sensor, uint8_t to) {
 	sensor.lastSendTime = millis();
 }
 
-bool send(uint8_t to, const uint8_t *data, uint8_t size) {
+uint8_t send(uint8_t to, const uint8_t *data, uint8_t size) {
 	SensorState &sensor = sensors[to - 2];
 	if (sensor.retries)
-		return false;
+		return FRAME_ERR_BUSY;
 	sensor.size = size + 5;
 	noInterrupts();
 	sensor.data = (uint8_t *) malloc(sensor.size);
 	interrupts();
 	if (sensor.data == NULL)
-		return false;
+		return FRAME_ERR_MEM;
 	sensor.data[0] = MsgType::Data;
 	sensor.retries = SEND_RETRIES;
 	memcpy(&sensor.data[5], data, size);
 	sendData(sensor, to);
-	return true;
+	return 0;
 }
 
 void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
@@ -107,11 +109,16 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 		size--;
 		uint8_t to = *data++;
 		if (to < 2) {
-			serialSendFrame(FRAME_ERR_OTHER, to, NULL, 0);
+			serialSendFrame(FRAME_ERR_ADDR, to, NULL, 0);
 			return;
 		}
-		if (!send(to, data, size)) {
-			serialSendFrame(FRAME_ERR_OTHER, to, NULL, 0);
+		if (size > RF69_MAX_DATA_LEN - 5) {
+			serialSendFrame(FRAME_ERR_ADDR, to, NULL, 0);
+			return;
+		}
+		uint8_t err = send(to, data, size);
+		if (err != 0) {
+			serialSendFrame(err, to, NULL, 0);
 		}
 	}
 		break;
