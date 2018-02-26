@@ -59,7 +59,7 @@ void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data,
 		memcpy(&packet[5], data, size);
 	}
 
-	uint16_t checksum = getChecksum(&packet[2], size + 2);
+	uint16_t checksum = getChecksum(&packet[2], size + 3);
 	packet[5 + size] = checksum >> 8;
 	packet[6 + size] = checksum;
 	serialSendRaw(packet, sizeof(packet));
