@@ -33,9 +33,16 @@ export class RadioLayer {
 
             await this.sendPacketAndWaitFor(pack,
                 r => {
-                    if (r[0] === Constants.Rsp_PacketSent && r[1] === msg.to) return true; //packet sent
-                    if (r[0] === Constants.Err_Other && r[1] === msg.to) throw new CommunicationError(`unexpected error (${msg.to})`);
-                    if (r[0] === Constants.Err_Timeout && r[1] === msg.to) throw new TimeoutNoAckError(`timeout. no ACK (${msg.to})`);
+                    if (r[1] !== msg.to) return;
+                    switch (r[0]) {
+                        case Constants.Rsp_PacketSent: return true;
+
+                        case Constants.Err_Addr: throw new Error(`invalid address ${r[1]}`);
+                        case Constants.Err_Busy: throw new Error(`address already busy ${r[1]}`);
+                        case Constants.Err_InvalidSize: throw new Error(`invalid size ${msg.data.length}`);
+                        case Constants.Err_Mem: throw new Error(`gw memory full`);
+                        case Constants.Err_Timeout: throw new Error(`timeout. no ack (${msg.to})`);
+                    }
                 });
             msg.resolve(true);
         } catch (err) {
@@ -43,31 +50,19 @@ export class RadioLayer {
         }
     }
 
-    private async sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, tries: number = 3, timeout: number = 700) {
-        while (tries--) {
-            try {
-                await this.below.send(packet);
-                await this.below.data
-                    .filter(p => verifyReply(p))
-                    .first()
-                    .timeout(timeout)
-                    .catch(err => {
-                        if (err instanceof CommunicationError) throw err;
-                        if (err.message.indexOf('Timeout') >= 0) throw new RetryError('timeout; no reply received');
-                        throw err;
-                    })
-                    .toPromise();
-                break;
-            } catch (err) {
-                if (err instanceof RetryError && tries !== 0) continue;
-                throw err;
-            }
-        }
+    private async sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 600) {
+        const waiter = this.below.data
+            .filter(p => verifyReply(p))
+            .first()
+            .timeout(timeout)
+            .toPromise();
+        await this.below.send(packet);
+        await waiter;
     }
 
     async init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
         const aux = new Buffer(100);
-        let offset = 0;
+        let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
         if (key !== void 0) {
             if (key.length !== 16) throw new Error(`Invalid AES-128 key size (${key.length})`);
             offset = aux.writeUInt8('K'.charCodeAt(0), offset);
@@ -88,7 +83,7 @@ export class RadioLayer {
         if (offset !== 0) {
             const configure = new Buffer(offset);
             aux.copy(configure, 0, 0, offset);
-            await this.sendPacketAndWaitFor(configure, p => p.length == 1 && p[0] == Constants.Rsp_Configured);
+            await this.sendPacketAndWaitFor(configure, p => p.length == 2 && p[0] == Constants.Rsp_Configured);
         }
     }
 
@@ -104,6 +99,7 @@ export class RadioLayer {
     }
 
     send(to: number, data: Buffer) {
+        if (data.length > 56) return Promise.reject(new Error(`invalid msg size ${data.length}`));
         return new Promise((resolve, reject) => this._sendQueue.next({ to, data, resolve, reject }));
     }
 }
@@ -116,8 +112,11 @@ class Constants {
     static readonly Rsp_PacketSent = 0x93;
     static readonly Rsp_ReceivePacket = 0x94;
 
-    static readonly Err_Other = 0x79;
-    static readonly Err_Timeout = 0x72;
+    static readonly Err_InvalidSize = 0x71;
+    static readonly Err_Busy = 0x72;
+    static readonly Err_Addr = 0x73;
+    static readonly Err_Mem = 0x74;
+    static readonly Err_Timeout = 0x75;
 }
 
 interface RadioConfig {
@@ -125,22 +124,4 @@ interface RadioConfig {
     freq?: number;
     networkId?: number;
     powerLevel?: number;
-}
-
-class CommunicationError extends Error {
-    constructor(message: string) {
-        super(message);
-    }
-}
-
-class RetryError extends CommunicationError {
-    constructor(message: string) {
-        super(message);
-    }
-}
-
-class TimeoutNoAckError extends RetryError {
-    constructor(message: string) {
-        super(message);
-    }
 }

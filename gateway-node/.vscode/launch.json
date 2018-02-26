@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Launch",
             "args": [
-                "index.ts"
+                "src/index.ts"
             ],
             "runtimeArgs": [
                 "--nolazy",

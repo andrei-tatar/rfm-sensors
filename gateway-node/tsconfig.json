@@ -2,9 +2,10 @@
     "compilerOptions": {
         "module": "commonjs",
         "noImplicitAny": false,
-        "sourceMap": true,
+        "sourceMap": false,
         "importHelpers": true,
         "target": "es2017",
+        "outDir": "build",
         "lib": [
             "es2017"
         ]

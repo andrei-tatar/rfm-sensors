@@ -20,12 +20,14 @@ export class SerialLayer implements MessageLayer {
     }
 
     open() {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<() => void>((resolve, reject) => {
             this.serial.on('open', () => {
                 resolve();
             });
             this.serial.on('error', reject);
             this.serial.open();
+
+            resolve(() => { this.serial.close(); });
         });
     }
 
