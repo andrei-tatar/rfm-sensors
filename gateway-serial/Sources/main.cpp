@@ -32,7 +32,7 @@ void debug(const char* format, ...) {
 	va_end(argptr);
 	serialSendRaw((uint8_t*) dest, size);
 }
-void debugHex(const char* prefix, uint8_t addr, uint8_t* data, uint8_t size) {
+void debugHex(const char* prefix, uint8_t addr, const uint8_t* data, uint8_t size) {
 	debug("%s(%d):", prefix, addr);
 	while (size--)
 	debug("%02x ", *data++);
@@ -44,6 +44,7 @@ void debugHex(const char* prefix, uint8_t addr, uint8_t* data, uint8_t size) {
 #endif
 
 void setup() {
+	delay(500); // wait for power to stabilize 
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		sensors[i].oldReceiveNonce = createNonce();
 		sensors[i].nextReceiveNonce = createNonce();
@@ -127,6 +128,7 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 			size--;
 			switch (*data++) {
 			case 'K': //encryption key
+				debugHex("Key", 0, data, 16);
 				radio.encrypt(data);
 				data += 16;
 				size -= 16;
@@ -216,7 +218,7 @@ void loop() {
 		auto rxPacket = radioPackets.pop();
 		interrupts();
 		if (rxPacket != NULL) {
-			//debugHex("RX", packet.from, packet.data, packet.size);
+			debugHex("RX", rxPacket->from, rxPacket->data, rxPacket->size);
 			for (volatile uint32_t i = 0; i < 800; i++) {
 				//give the sender a chance to start receiving
 			}
