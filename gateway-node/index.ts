@@ -1,3 +1,4 @@
+import { RadioLayer } from './communication/radio';
 import { SerialLayer } from './communication/serial';
 import { PackageLayer } from './communication/package';
 
@@ -5,18 +6,13 @@ import 'rxjs/add/operator/first';
 
 const serialLayer = new SerialLayer('COM7');
 const packageLayer = new PackageLayer(serialLayer);
+const radioLayer = new RadioLayer(packageLayer);
 
 async function test() {
     await serialLayer.open();
+    await radioLayer.init({ key: Buffer.from('16 byte AES KEY.') });
 
-    const start = new Date().getTime();
-    packageLayer.data.first().subscribe(v => {
-        const time = new Date().getTime() - start;
-        console.log(time, v);
-    });
-
-    await packageLayer.send(Buffer.from([2, 1, 2, 3]));
-    await delay(2000);
+    radioLayer.send(2, Buffer.from('Hello world!'));
 }
 
 function delay(time: number) {

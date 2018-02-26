@@ -14,6 +14,7 @@ enum RxStatus {
 interface State {
     status: RxStatus;
     buffer: Buffer;
+    size: number;
     offset: number;
     chkSum: number;
     received: Buffer;
@@ -34,12 +35,10 @@ export class PackageLayer implements MessageLayer {
                     buffer: null,
                     offset: 0,
                     chkSum: 0,
+                    size: 0,
                     received: null,
                 } as State)
-            .filter(v => {
-                debugger;
-                return v.received !== null;
-            })
+            .filter(v => v.received !== null)
             .map(v => v.received);
     }
 
@@ -56,8 +55,9 @@ export class PackageLayer implements MessageLayer {
                     state.status = data === FrameHeader2 ? RxStatus.Size : RxStatus.Idle;
                     break;
                 case RxStatus.Size:
-                    state.buffer = new Buffer(data + 1);
-                    state.offset = state.buffer.writeUInt8(data, 0);
+                    state.size = data;
+                    state.buffer = new Buffer(data);
+                    state.offset = 0;
                     state.status = RxStatus.Data;
                     break;
                 case RxStatus.Data:
@@ -70,11 +70,10 @@ export class PackageLayer implements MessageLayer {
                     break;
                 case RxStatus.Checksum2:
                     state.chkSum |= data;
-                    const checksum = this.getChecksum(state.buffer, 0, state.buffer.length);
+                    const checksum = this.getChecksum(state.buffer);
                     if (checksum === state.chkSum) {
-                        const packet = new Buffer(state.buffer.length - 1);
-                        state.buffer.copy(packet, 0, 1, state.buffer.length);
-                        state.received = packet;
+                        state.received = state.buffer;
+                        state.buffer = null;
                     }
                     state.status = RxStatus.Idle;
                     break;
@@ -85,11 +84,12 @@ export class PackageLayer implements MessageLayer {
         }
     }
 
-    private getChecksum(data: Buffer, offset: number, length: number) {
+    private getChecksum(data: Buffer) {
         let checksum = 0x1021;
 
-        for (let i = 0; i < length; i++) {
-            const byte = data[offset + i];
+        const size = data.length;
+        for (let i = 0; i <= size; i++) {
+            const byte = i == 0 ? size : data[i - 1];
             const roll = (checksum & 0x8000) != 0 ? true : false;
             checksum <<= 1;
             checksum &= 0xFFFF;
@@ -106,7 +106,7 @@ export class PackageLayer implements MessageLayer {
         offset = packet.writeUInt8(FrameHeader2, offset);
         offset = packet.writeUInt8(data.length, offset);
         offset += data.copy(packet, offset, 0, data.length);
-        const checksum = this.getChecksum(packet, 2, data.length + 1);
+        const checksum = this.getChecksum(data);
         packet.writeUInt16BE(checksum, offset);
 
         await this.below.send(packet);
