@@ -7,6 +7,8 @@ import 'rxjs/add/operator/concatMap'
 import 'rxjs/add/operator/mergeMap'
 import 'rxjs/add/operator/timeout'
 import 'rxjs/add/operator/catch'
+import 'rxjs/add/operator/toPromise'
+import 'rxjs/add/observable/throw'
 
 interface SendMessage {
     to: number, data: Buffer, resolve: Function, reject: Function;
@@ -51,13 +53,12 @@ export class RadioLayer {
     }
 
     private async sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 600) {
-        const waiter = this.below.data
+        await this.below.send(packet);
+        await this.below.data
             .filter(p => verifyReply(p))
             .first()
             .timeout(timeout)
             .toPromise();
-        await this.below.send(packet);
-        await waiter;
     }
 
     async init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
@@ -99,7 +100,6 @@ export class RadioLayer {
     }
 
     send(to: number, data: Buffer) {
-        if (data.length > 56) return Promise.reject(new Error(`invalid msg size ${data.length}`));
         return new Promise((resolve, reject) => this._sendQueue.next({ to, data, resolve, reject }));
     }
 }

@@ -10,7 +10,7 @@ export class SerialLayer implements MessageLayer {
 
     constructor(port: string) {
         this.serial = new SerialPort(port, {
-            baudRate: 230400,
+            baudRate: 115200,
             dataBits: 8,
             stopBits: 1,
             parity: 'none',
@@ -20,14 +20,21 @@ export class SerialLayer implements MessageLayer {
     }
 
     open() {
-        return new Promise<() => void>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             this.serial.on('open', () => {
                 resolve();
             });
             this.serial.on('error', reject);
             this.serial.open();
+        });
+    }
 
-            resolve(() => { this.serial.close(); });
+    close() {
+        return new Promise<void>((resolve, reject) => {
+            this.serial.close(err => {
+                if (err) reject(err);
+                else resolve();
+            });
         });
     }
 
