@@ -114,7 +114,7 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 			return;
 		}
 		if (size > RF69_MAX_DATA_LEN - 5) {
-			serialSendFrame(FRAME_ERR_ADDR, to, NULL, 0);
+			serialSendFrame(FRAME_ERR_INVALID_SIZE, to, NULL, 0);
 			return;
 		}
 		uint8_t err = send(to, data, size);
@@ -158,6 +158,7 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 }
 
 void onRadioPacketReceived(RxPacket &packet) {
+	if (packet.from < 2) return;
 	SensorState& sensor = sensors[packet.from - 2];
 	auto data = packet.data;
 	auto size = packet.size;

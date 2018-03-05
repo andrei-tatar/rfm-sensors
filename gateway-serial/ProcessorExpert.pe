@@ -3,8 +3,8 @@
   <Header>
     <Name>ProcessorExpert</Name>
     <SavedBy>andrei</SavedBy>
-    <ModificationStamp>145</ModificationStamp>
-    <Date>2018-02-26</Date>
+    <ModificationStamp>149</ModificationStamp>
+    <Date>2018-03-05</Date>
     <IDE>Eclipse IDE</IDE>
     <PEversion>1.9.2.RT6_b1446-0504</PEversion>
   </Header>
@@ -28,7 +28,7 @@
     <UseExistingModules>true</UseExistingModules>
     <RenamePeripheries>false</RenamePeripheries>
     <Autodependency>true</Autodependency>
-    <ProjectCompNumb>132</ProjectCompNumb>
+    <ProjectCompNumb>135</ProjectCompNumb>
     <DelUnusedPreviouslyGenFiles>true</DelUnusedPreviouslyGenFiles>
     <GeneratedCodeFrozen>false</GeneratedCodeFrozen>
     <AssignInitComponentNameToPrph>true</AssignInitComponentNameToPrph>
@@ -5269,7 +5269,7 @@
         <ReadOnly>false</ReadOnly>
         <UserReadOnly>false</UserReadOnly>
         <PropertyModelIsAutomatic>false</PropertyModelIsAutomatic>
-        <Value>13</Value>
+        <Value>26</Value>
         <Base>DEC</Base>
       </ItemState>
       <ItemState>
@@ -5316,7 +5316,7 @@
       </ItemState>
       <ItemState>
         <ItemSymbol>SCIBaudOversampled</ItemSymbol>
-        <Value>230636.308 baud</Value>
+        <Value>115318.154 baud</Value>
       </ItemState>
       <ItemState>
         <ItemSymbol>SetBothEdgeSamplingFeatureCondGroup</ItemSymbol>
