@@ -8,14 +8,15 @@
 #ifndef SERIAL_H_
 #define SERIAL_H_
 
-#include "../queue.h"
-
+#define RX_PACKET_SIZE	60
 typedef struct {
-	uint8_t *data;
+	uint8_t data[RX_PACKET_SIZE];
 	uint8_t size;
 } RxSerial;
 
-extern Queue<RxSerial*> rxPackets;
+#define SERIAL_RX_QUEUE_SIZE	5
+extern RxSerial serialRxQueue[SERIAL_RX_QUEUE_SIZE];
+extern volatile uint8_t serialRxHead, serialRxTail, serialRxCount;
 
 void serialSendRaw(const uint8_t *data, uint8_t size);
 void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data, uint8_t size);

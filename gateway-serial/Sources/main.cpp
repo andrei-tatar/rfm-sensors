@@ -5,9 +5,15 @@ bool inited = false;
 
 #define SEND_RETRIES 	10
 #define RETRY_INTERVAL 	50
-static Queue<RxPacket*> radioPackets;
-static SensorState sensors[253]; //0 is addr 2
-#define SENSORS sizeof(sensors) / sizeof(SensorState)
+
+#define MIN_ADDR	2
+#define MAX_ADDR	50
+#define SENSORS (MAX_ADDR - MIN_ADDR + 1)
+static SensorState sensors[SENSORS];
+
+#define RADIO_QUEUE_SIZE		5
+static RfmPacket radioQueue[RADIO_QUEUE_SIZE];
+static volatile uint8_t radioTail = 0, radioHead = 0, radioCount = 0;
 
 #define FRAME_CONFIGURE             0x90
 #define FRAME_CONFIGURED            0x91
@@ -67,12 +73,6 @@ void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
 }
 
 void sendDone(SensorState &sensor) {
-	if (sensor.data) {
-		noInterrupts();
-		free(sensor.data);
-		interrupts();
-	}
-	sensor.data = NULL;
 	sensor.retries = 0;
 	sensor.size = 0;
 }
@@ -87,13 +87,10 @@ void sendData(SensorState& sensor, uint8_t to) {
 }
 
 uint8_t send(uint8_t to, const uint8_t *data, uint8_t size) {
-	SensorState &sensor = sensors[to - 2];
+	SensorState &sensor = sensors[to - MIN_ADDR];
 	if (sensor.retries)
 		return FRAME_ERR_BUSY;
 	sensor.size = size + 5;
-	noInterrupts();
-	sensor.data = (uint8_t *) malloc(sensor.size);
-	interrupts();
 	if (sensor.data == NULL)
 		return FRAME_ERR_MEM;
 	sensor.data[0] = MsgType::Data;
@@ -109,7 +106,7 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 	case FRAME_SENDPACKET: {
 		size--;
 		uint8_t to = *data++;
-		if (to < 2) {
+		if (to < MIN_ADDR || to > MAX_ADDR) {
 			serialSendFrame(FRAME_ERR_ADDR, to, NULL, 0);
 			return;
 		}
@@ -157,9 +154,9 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 	}
 }
 
-void onRadioPacketReceived(RxPacket &packet) {
-	if (packet.from < 2) return;
-	SensorState& sensor = sensors[packet.from - 2];
+void onRadioPacketReceived(RfmPacket &packet) {
+	if (packet.from < MIN_ADDR || packet.from > MAX_ADDR) return;
+	SensorState& sensor = sensors[packet.from - MIN_ADDR];
 	auto data = packet.data;
 	auto size = packet.size;
 
@@ -214,76 +211,53 @@ void onRadioPacketReceived(RxPacket &packet) {
 }
 
 void loop() {
-	do {
+	while (radioCount != 0) {
+		RfmPacket &rx = radioQueue[radioHead];
+		debugHex("RX", rx.from, rx.data, rx.size);
+		onRadioPacketReceived(rx);
 		noInterrupts();
-		auto rxPacket = radioPackets.pop();
+		radioCount--;
+		if (radioHead++ == RADIO_QUEUE_SIZE) radioHead = 0;
 		interrupts();
-		if (rxPacket != NULL) {
-			debugHex("RX", rxPacket->from, rxPacket->data, rxPacket->size);
-			onRadioPacketReceived(*rxPacket);
-			noInterrupts();
-			free(rxPacket->data);
-			free(rxPacket);
-			interrupts();
-		} else
-			break;
-	} while (true);
+	}
 
-	do {
+	while (serialRxCount != 0) {
+		RxSerial &rx = serialRxQueue[serialRxHead];
+		onSerialPacketReceived(rx.data, rx.size);
 		noInterrupts();
-		auto serialPacket = rxPackets.pop();
+		serialRxCount--;
+		if (serialRxHead++ == SERIAL_RX_QUEUE_SIZE) serialRxHead = 0;
 		interrupts();
-		if (serialPacket != NULL) {
-			onSerialPacketReceived(serialPacket->data, serialPacket->size);
-			noInterrupts();
-			free(serialPacket->data);
-			free(serialPacket);
-			interrupts();
-		} else
-			break;
-	} while (true);
-
+	}
+	
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		SensorState &sensor = sensors[i];
 		if (sensor.retries && millis() >= sensor.lastSendTime + RETRY_INTERVAL) {
 			sensor.retries--;
 			if (sensor.retries == 0) {
 				sendDone(sensor);
-				serialSendFrame(FRAME_ERR_TIMEOUT, i + 2, NULL, 0);
+				serialSendFrame(FRAME_ERR_TIMEOUT, i + MIN_ADDR, NULL, 0);
 			} else {
-				sendData(sensor, i + 2);
+				sendData(sensor, i + MIN_ADDR);
 			}
 		}
 	}
 }
 
 PE_ISR(portDInterrupt) {
-	static RfmPacket packet;
 	if (PORT_PDD_GetPinInterruptFlag(PORTD_BASE_PTR, 4) ) {
 		PORT_PDD_ClearPinInterruptFlag(PORTD_BASE_PTR, 4);
-		if (!inited)
+		if (!inited) return;
+		if (radioCount == RADIO_QUEUE_SIZE) {
+			//TODO: we have to many packets in the queue... (store some error for stats)
 			return;
-		packet.size = 0;
+		}
+		RfmPacket& packet = radioQueue[radioTail];
 		radio.interrupt(packet);
-
-		if (packet.size && packet.from >= 2) {
+		if (packet.size && packet.from >= MIN_ADDR && packet.from <= MAX_ADDR) {
 			noInterrupts();
-			auto add = (RxPacket*) malloc(sizeof(RxPacket));
-			if (add == NULL) {
-				interrupts();
-				return;
-			}
-			add->data = (uint8_t*) malloc(packet.size);
-			if (add->data == NULL) {
-				free(add);
-				interrupts();
-				return;
-			}
-			memcpy(add->data, packet.data, packet.size);
-			add->size = packet.size;
-			add->rssi = packet.rssi;
-			add->from = packet.from;
-			radioPackets.push(add);
+			radioCount++;
+			if (radioTail++ == RADIO_QUEUE_SIZE) radioTail = 0;
 			interrupts();
 		}
 	}

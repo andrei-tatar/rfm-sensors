@@ -8,17 +8,9 @@
 #include "PE_Error.h"
 #include "PE_Const.h"
 #include "IO_Map.h"
-#include <stdlib.h>
 #include <string.h>
-#include <queue.h>
 #include "serial.h"
 #include "hal.h"
-
-typedef struct {
-	uint8_t* data;
-	uint8_t size;
-	uint8_t sent;
-} SendPacket;
 
 typedef enum {
 	Idle, Hdr, Size, Data, Chk1, Chk2
@@ -28,8 +20,19 @@ typedef enum {
 #define FRAME_HEADER_2  0x5B
 #define CHKSUM_INIT     0x1021
 
-static Queue<SendPacket*> txPackets;
-Queue<RxSerial*> rxPackets;
+#define TX_PACKET_SIZE	60
+typedef struct {
+	uint8_t data[TX_PACKET_SIZE];
+	uint8_t size;
+	uint8_t sent;
+} TxSerial;
+
+#define SERIAL_TX_QUEUE_SIZE	5
+static TxSerial serialTxQueue[SERIAL_TX_QUEUE_SIZE];
+static volatile uint8_t serialTxHead = 0, serialTxTail = 0, serialTxCount = 0;
+
+RxSerial serialRxQueue[SERIAL_RX_QUEUE_SIZE];
+volatile uint8_t serialRxHead = 0, serialRxTail = 0, serialRxCount = 0;
 
 static void updateChecksum(uint16_t *checksum, uint8_t data) {
 	bool roll = *checksum & 0x8000 ? true : false;
@@ -66,27 +69,20 @@ void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data,
 }
 
 void serialSendRaw(const uint8_t *data, uint8_t size) {
-	if (size == 0) {
+	if (size == 0 || size > SERIAL_TX_QUEUE_SIZE) {
 		return;
 	}
 
+	while (serialTxCount == SERIAL_TX_QUEUE_SIZE) {
+		//wait until we have space in the queue
+	}
+	
+	serialTxQueue[serialTxTail].size = size;
+	memcpy(serialTxQueue[serialTxTail].data, data, size);
+	
 	noInterrupts();
-	auto add = (SendPacket*) malloc(sizeof(SendPacket));
-	if (add == NULL) {
-		interrupts();
-		return;
-	}
-	add->data = (uint8_t*) malloc(size);
-	if (add->data == NULL) {
-		free(add);
-		interrupts();
-		return;
-	}
-
-	memcpy(add->data, data, size);
-	add->size = size;
-	add->sent = 0;
-	txPackets.push(add);
+	serialTxCount++;
+	if (serialTxTail++ == SERIAL_TX_QUEUE_SIZE) serialTxTail = 0;
 	interrupts();
 
 	/* Enable TX interrupt */
@@ -94,16 +90,14 @@ void serialSendRaw(const uint8_t *data, uint8_t size) {
 }
 
 static void InterruptTx() {
-	auto current = txPackets.peek();
-	if (current) {
-		UART0_PDD_PutChar8(UART0_BASE_PTR, current->data[current->sent++]);
-		if (current->sent == current->size) {
+	if (serialTxCount) {
+		TxSerial &current = serialTxQueue[serialTxHead];
+		UART0_PDD_PutChar8(UART0_BASE_PTR, current.data[current.sent++]);
+		if (current.sent == current.size) {
 			noInterrupts();
-			txPackets.pop();
-			free(current->data);
-			free(current);
+			serialTxCount--;
+			if (serialTxHead++ == SERIAL_TX_QUEUE_SIZE) serialTxHead = 0;
 			interrupts();
-
 		}
 	} else {
 		/* Disable TX interrupt */
@@ -114,9 +108,8 @@ static void InterruptTx() {
 
 static void InterruptRx() {
 	static RxStatus status = RxStatus::Idle;
-	static uint8_t size, offset;
+	static uint8_t offset;
 	static uint16_t chksum, rxChksum;
-	static uint8_t* buffer;
 	uint8_t data = UART0_PDD_GetChar8(UART0_BASE_PTR);
 
 	switch (status) {
@@ -128,17 +121,25 @@ static void InterruptRx() {
 		status = data == FRAME_HEADER_2 ? RxStatus::Size : RxStatus::Idle;
 		break;
 	case RxStatus::Size:
-		size = data;
-		buffer = (uint8_t*) malloc(size);
-		status = buffer == NULL ? RxStatus::Idle : RxStatus::Data;
+		if (data > RX_PACKET_SIZE) {
+			status = RxStatus::Idle;
+			break;
+		}
+		serialRxQueue[serialRxTail].size = data;
+		status = RxStatus::Data;
 		chksum = CHKSUM_INIT;
 		offset = 0;
-		updateChecksum(&chksum, size);
+		updateChecksum(&chksum, data);
 		break;
 	case RxStatus::Data:
+		if (serialRxCount == SERIAL_RX_QUEUE_SIZE) {
+			//TODO: queue is full, do some stats
+			status = RxStatus::Idle;
+			break;
+		}
 		updateChecksum(&chksum, data);
-		buffer[offset++] = data;
-		if (offset == size)
+		serialRxQueue[serialRxTail].data[offset++] = data;
+		if (offset == serialRxQueue[serialRxTail].size)
 			status = RxStatus::Chk1;
 		break;
 	case RxStatus::Chk1:
@@ -149,16 +150,9 @@ static void InterruptRx() {
 		rxChksum |= data;
 		if (chksum == rxChksum) {
 			noInterrupts();
-			auto packet = (RxSerial*) malloc(sizeof(RxSerial));
-			if (packet != NULL) {
-				packet->data = buffer;
-				packet->size = size;
-				rxPackets.push(packet);
-			}
-			interrupts();
-		} else {
-			free(buffer);
-		}
+			if (serialRxTail++ == SERIAL_RX_QUEUE_SIZE) serialRxTail = 0;
+			serialRxCount ++;
+		} 
 		status = RxStatus::Idle;
 		break;
 
