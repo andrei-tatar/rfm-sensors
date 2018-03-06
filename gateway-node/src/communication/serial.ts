@@ -10,7 +10,7 @@ export class SerialLayer implements MessageLayer {
 
     constructor(port: string) {
         this.serial = new SerialPort(port, {
-            baudRate: 115200,
+            baudRate: 230400,
             dataBits: 8,
             stopBits: 1,
             parity: 'none',

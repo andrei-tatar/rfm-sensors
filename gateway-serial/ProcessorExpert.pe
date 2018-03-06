@@ -3,7 +3,7 @@
   <Header>
     <Name>ProcessorExpert</Name>
     <SavedBy>andrei</SavedBy>
-    <ModificationStamp>154</ModificationStamp>
+    <ModificationStamp>155</ModificationStamp>
     <Date>2018-03-06</Date>
     <IDE>Eclipse IDE</IDE>
     <PEversion>1.9.2.RT6_b1446-0504</PEversion>
@@ -5269,7 +5269,7 @@
         <ReadOnly>false</ReadOnly>
         <UserReadOnly>false</UserReadOnly>
         <PropertyModelIsAutomatic>false</PropertyModelIsAutomatic>
-        <Value>26</Value>
+        <Value>13</Value>
         <Base>DEC</Base>
       </ItemState>
       <ItemState>
@@ -5316,7 +5316,7 @@
       </ItemState>
       <ItemState>
         <ItemSymbol>SCIBaudOversampled</ItemSymbol>
-        <Value>115318.154 baud</Value>
+        <Value>230636.308 baud</Value>
       </ItemState>
       <ItemState>
         <ItemSymbol>SetBothEdgeSamplingFeatureCondGroup</ItemSymbol>

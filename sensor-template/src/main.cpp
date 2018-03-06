@@ -21,17 +21,12 @@ void setup()
 
 void loop()
 {
-    // static uint32_t nextSend;
-    // if (millis() > nextSend)
-    // {
-    //     nextSend = millis() + 2000;
-    //     if (sensor.sendAndWait((uint8_t *)"Hello", 5))
-    //     {
-    //         digitalWrite(LED, HIGH);
-    //         delay(100);
-    //         digitalWrite(LED, LOW);
-    //     }
-    // }
+    static uint32_t nextSend;
+    if (millis() > nextSend)
+    {
+        nextSend = millis() + 2000;
+        sensor.send((uint8_t *)"Hello", 5);
+    }
 
     sensor.update();
 }

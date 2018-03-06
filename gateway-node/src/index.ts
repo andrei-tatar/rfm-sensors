@@ -12,23 +12,20 @@ async function test() {
     try {
         await serialLayer.open();
         await radioLayer.init({ key: Buffer.from([0xd9, 0xc1, 0xbd, 0x60, 0x9c, 0x35, 0x3e, 0x8b, 0xab, 0xbc, 0x8d, 0x35, 0xc7, 0x04, 0x74, 0xef]) });
-
         radioLayer.data.subscribe(m => console.log(m.from, m.data.toString()));
 
         while (true) {
-            for (let packetSize = 50; packetSize < 58; packetSize++) {
-                // const packetSize = 40;
+            for (let packetSize = 35; packetSize < 58; packetSize++) {
                 const packets = 200;
                 const start = new Date().getTime();
-                for (let i = 0; i < packets; i += 3) {
+                for (let i = 0; i < packets; i++) {
                     await radioLayer.send(2, new Buffer(packetSize));
                 }
                 const time = (new Date().getTime() - start) / 1000 / packets;
                 console.log(`${packetSize} -  ${1 / time * packetSize / 1024 * 8} kbps`)
-                await delay(200);
             }
         }
-        await delay(8000);
+        // await delay(15000);
 
     } finally {
         await serialLayer.close().catch(e => { });
