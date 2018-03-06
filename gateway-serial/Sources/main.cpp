@@ -220,9 +220,6 @@ void loop() {
 		interrupts();
 		if (rxPacket != NULL) {
 			debugHex("RX", rxPacket->from, rxPacket->data, rxPacket->size);
-			for (volatile uint32_t i = 0; i < 800; i++) {
-				//give the sender a chance to start receiving
-			}
 			onRadioPacketReceived(*rxPacket);
 			noInterrupts();
 			free(rxPacket->data);

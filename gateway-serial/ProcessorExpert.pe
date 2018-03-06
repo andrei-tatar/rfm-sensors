@@ -3,8 +3,8 @@
   <Header>
     <Name>ProcessorExpert</Name>
     <SavedBy>andrei</SavedBy>
-    <ModificationStamp>149</ModificationStamp>
-    <Date>2018-03-05</Date>
+    <ModificationStamp>152</ModificationStamp>
+    <Date>2018-03-06</Date>
     <IDE>Eclipse IDE</IDE>
     <PEversion>1.9.2.RT6_b1446-0504</PEversion>
   </Header>
@@ -28,7 +28,7 @@
     <UseExistingModules>true</UseExistingModules>
     <RenamePeripheries>false</RenamePeripheries>
     <Autodependency>true</Autodependency>
-    <ProjectCompNumb>135</ProjectCompNumb>
+    <ProjectCompNumb>138</ProjectCompNumb>
     <DelUnusedPreviouslyGenFiles>true</DelUnusedPreviouslyGenFiles>
     <GeneratedCodeFrozen>false</GeneratedCodeFrozen>
     <AssignInitComponentNameToPrph>true</AssignInitComponentNameToPrph>
@@ -5329,8 +5329,8 @@
         <UserReadOnly>false</UserReadOnly>
         <PropertyModelIsAutomatic>false</PropertyModelIsAutomatic>
         <TypeSpecNameState>typeSetBothEdgeSampling</TypeSpecNameState>
-        <Index>1</Index>
-        <EnumSymbVal>disabled</EnumSymbVal>
+        <Index>0</Index>
+        <EnumSymbVal>enabled</EnumSymbVal>
       </ItemState>
       <ItemState>
         <ItemSymbol>EnableResyncFeatureCondGroup</ItemSymbol>
