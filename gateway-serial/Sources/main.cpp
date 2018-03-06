@@ -13,7 +13,8 @@ static SensorState sensors[SENSORS];
 
 #define RADIO_QUEUE_SIZE		5
 static RfmPacket radioQueue[RADIO_QUEUE_SIZE];
-static volatile uint8_t radioTail = 0, radioHead = 0, radioCount = 0;
+static volatile uint8_t radioTail = 0, radioCount = 0;
+static uint8_t radioHead = 0;
 
 #define FRAME_CONFIGURE             0x90
 #define FRAME_CONFIGURED            0x91
@@ -155,7 +156,8 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 }
 
 void onRadioPacketReceived(RfmPacket &packet) {
-	if (packet.from < MIN_ADDR || packet.from > MAX_ADDR) return;
+	if (packet.from < MIN_ADDR || packet.from > MAX_ADDR)
+		return;
 	SensorState& sensor = sensors[packet.from - MIN_ADDR];
 	auto data = packet.data;
 	auto size = packet.size;
@@ -217,7 +219,8 @@ void loop() {
 		onRadioPacketReceived(rx);
 		noInterrupts();
 		radioCount--;
-		if (radioHead++ == RADIO_QUEUE_SIZE) radioHead = 0;
+		if (++radioHead == RADIO_QUEUE_SIZE)
+			radioHead = 0;
 		interrupts();
 	}
 
@@ -226,10 +229,11 @@ void loop() {
 		onSerialPacketReceived(rx.data, rx.size);
 		noInterrupts();
 		serialRxCount--;
-		if (serialRxHead++ == SERIAL_RX_QUEUE_SIZE) serialRxHead = 0;
+		if (++serialRxHead == SERIAL_RX_QUEUE_SIZE)
+			serialRxHead = 0;
 		interrupts();
 	}
-	
+
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		SensorState &sensor = sensors[i];
 		if (sensor.retries && millis() >= sensor.lastSendTime + RETRY_INTERVAL) {
@@ -247,17 +251,20 @@ void loop() {
 PE_ISR(portDInterrupt) {
 	if (PORT_PDD_GetPinInterruptFlag(PORTD_BASE_PTR, 4) ) {
 		PORT_PDD_ClearPinInterruptFlag(PORTD_BASE_PTR, 4);
-		if (!inited) return;
+		if (!inited)
+			return;
 		if (radioCount == RADIO_QUEUE_SIZE) {
 			//TODO: we have to many packets in the queue... (store some error for stats)
 			return;
 		}
 		RfmPacket& packet = radioQueue[radioTail];
+		packet.size = 0;
 		radio.interrupt(packet);
 		if (packet.size && packet.from >= MIN_ADDR && packet.from <= MAX_ADDR) {
 			noInterrupts();
 			radioCount++;
-			if (radioTail++ == RADIO_QUEUE_SIZE) radioTail = 0;
+			if (++radioTail == RADIO_QUEUE_SIZE)
+				radioTail = 0;
 			interrupts();
 		}
 	}

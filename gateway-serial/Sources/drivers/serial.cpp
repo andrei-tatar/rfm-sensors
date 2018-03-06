@@ -29,10 +29,12 @@ typedef struct {
 
 #define SERIAL_TX_QUEUE_SIZE	5
 static TxSerial serialTxQueue[SERIAL_TX_QUEUE_SIZE];
-static volatile uint8_t serialTxHead = 0, serialTxTail = 0, serialTxCount = 0;
+static volatile uint8_t serialTxHead = 0, serialTxCount = 0;
+static uint8_t serialTxTail = 0;
 
 RxSerial serialRxQueue[SERIAL_RX_QUEUE_SIZE];
-volatile uint8_t serialRxHead = 0, serialRxTail = 0, serialRxCount = 0;
+volatile uint8_t serialRxTail = 0, serialRxCount = 0;
+uint8_t serialRxHead = 0;
 
 static void updateChecksum(uint16_t *checksum, uint8_t data) {
 	bool roll = *checksum & 0x8000 ? true : false;
@@ -69,20 +71,23 @@ void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data,
 }
 
 void serialSendRaw(const uint8_t *data, uint8_t size) {
-	if (size == 0 || size > SERIAL_TX_QUEUE_SIZE) {
+	if (size == 0 || size > TX_PACKET_SIZE) {
 		return;
 	}
 
 	while (serialTxCount == SERIAL_TX_QUEUE_SIZE) {
 		//wait until we have space in the queue
 	}
-	
-	serialTxQueue[serialTxTail].size = size;
-	memcpy(serialTxQueue[serialTxTail].data, data, size);
-	
+
+	TxSerial &slot = serialTxQueue[serialTxTail];
+	slot.size = size;
+	slot.sent = 0;
+	memcpy(slot.data, data, size);
+
 	noInterrupts();
 	serialTxCount++;
-	if (serialTxTail++ == SERIAL_TX_QUEUE_SIZE) serialTxTail = 0;
+	if (++serialTxTail == SERIAL_TX_QUEUE_SIZE)
+		serialTxTail = 0;
 	interrupts();
 
 	/* Enable TX interrupt */
@@ -91,12 +96,13 @@ void serialSendRaw(const uint8_t *data, uint8_t size) {
 
 static void InterruptTx() {
 	if (serialTxCount) {
-		TxSerial &current = serialTxQueue[serialTxHead];
-		UART0_PDD_PutChar8(UART0_BASE_PTR, current.data[current.sent++]);
-		if (current.sent == current.size) {
+		TxSerial &slot = serialTxQueue[serialTxHead];
+		UART0_PDD_PutChar8(UART0_BASE_PTR, slot.data[slot.sent++]);
+		if (slot.sent == slot.size) {
 			noInterrupts();
 			serialTxCount--;
-			if (serialTxHead++ == SERIAL_TX_QUEUE_SIZE) serialTxHead = 0;
+			if (++serialTxHead == SERIAL_TX_QUEUE_SIZE)
+				serialTxHead = 0;
 			interrupts();
 		}
 	} else {
@@ -121,7 +127,7 @@ static void InterruptRx() {
 		status = data == FRAME_HEADER_2 ? RxStatus::Size : RxStatus::Idle;
 		break;
 	case RxStatus::Size:
-		if (data > RX_PACKET_SIZE) {
+		if (serialRxCount == SERIAL_RX_QUEUE_SIZE || data > RX_PACKET_SIZE) {
 			status = RxStatus::Idle;
 			break;
 		}
@@ -132,11 +138,6 @@ static void InterruptRx() {
 		updateChecksum(&chksum, data);
 		break;
 	case RxStatus::Data:
-		if (serialRxCount == SERIAL_RX_QUEUE_SIZE) {
-			//TODO: queue is full, do some stats
-			status = RxStatus::Idle;
-			break;
-		}
 		updateChecksum(&chksum, data);
 		serialRxQueue[serialRxTail].data[offset++] = data;
 		if (offset == serialRxQueue[serialRxTail].size)
@@ -150,15 +151,13 @@ static void InterruptRx() {
 		rxChksum |= data;
 		if (chksum == rxChksum) {
 			noInterrupts();
-			if (serialRxTail++ == SERIAL_RX_QUEUE_SIZE) serialRxTail = 0;
-			serialRxCount ++;
-		} 
+			if (++serialRxTail == SERIAL_RX_QUEUE_SIZE)
+				serialRxTail = 0;
+			serialRxCount++;
+			interrupts();
+		}
 		status = RxStatus::Idle;
 		break;
-
-	default:
-		break;
-
 	}
 }
 

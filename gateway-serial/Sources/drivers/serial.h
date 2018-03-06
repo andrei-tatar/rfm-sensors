@@ -16,7 +16,8 @@ typedef struct {
 
 #define SERIAL_RX_QUEUE_SIZE	5
 extern RxSerial serialRxQueue[SERIAL_RX_QUEUE_SIZE];
-extern volatile uint8_t serialRxHead, serialRxTail, serialRxCount;
+extern volatile uint8_t serialRxTail, serialRxCount;
+extern uint8_t serialRxHead;
 
 void serialSendRaw(const uint8_t *data, uint8_t size);
 void serialSendFrame(uint8_t head, uint8_t from, const uint8_t *data, uint8_t size);
