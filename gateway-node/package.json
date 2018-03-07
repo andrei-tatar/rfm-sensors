@@ -11,7 +11,8 @@
   "devDependencies": {
     "@types/serialport": "^6.0.1",
     "ts-node": "^4.1.0",
-    "typescript": "^2.7.2"
+    "typescript": "^2.7.2",
+    "intel-hex": "git+https://github.com/andrei-tatar/intel-hex.js.git"
   },
   "dependencies": {
     "rxjs": "^5.5.6",
