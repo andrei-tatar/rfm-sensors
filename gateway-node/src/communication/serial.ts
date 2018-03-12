@@ -4,7 +4,7 @@ import { Observable } from 'rxjs/Observable';
 import { MessageLayer } from './message';
 import { Subject } from 'rxjs/Subject';
 
-export class SerialLayer implements MessageLayer {
+export class SerialLayer implements MessageLayer<Buffer> {
     private serial: SerialPort;
     private _data = new Subject<Buffer>();
 
@@ -43,12 +43,12 @@ export class SerialLayer implements MessageLayer {
     }
 
     send(data: Buffer) {
-        return new Promise<void>((resolve, reject) => {
+        return new Observable<void>(observer => {
             this.serial.write(data, (err) => {
                 if (err) {
-                    reject(err);
+                    observer.error(err);
                 } else {
-                    resolve();
+                    observer.complete();
                 }
             });
         });

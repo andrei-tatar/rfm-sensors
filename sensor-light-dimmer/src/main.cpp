@@ -7,7 +7,7 @@
 #define PIN_LED 5
 #define PIN_TRIAC 6
 
-Sensor sensor(10);
+Sensor sensor;
 
 #define CMD_SET 1
 #define CMD_GET 2
@@ -78,6 +78,7 @@ void zeroCross()
 
 void setup()
 {
+    sensor.init();
     sensor.onMessage(onData);
 
     pinMode(PIN_TOUCH, INPUT);

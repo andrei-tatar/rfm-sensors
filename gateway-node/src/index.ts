@@ -1,33 +1,52 @@
+import { Observable } from 'rxjs/Observable';
+import { MessageLayer } from './communication/message';
+import './vendor';
 import { RadioNode } from './node';
 import { RadioLayer } from './communication/radio';
 import { SerialLayer } from './communication/serial';
 import { PackageLayer } from './communication/package';
 
-import 'rxjs/add/operator/first';
 import { readFile } from 'fs';
-
-const serialLayer = new SerialLayer('COM5');
-const packageLayer = new PackageLayer(serialLayer);
-const radioLayer = new RadioLayer(packageLayer);
+import { Telnet } from './communication/telnet';
 
 async function test() {
+    const telnetLayer = new Telnet('192.168.1.51');
     try {
-        await serialLayer.open();
-        await radioLayer.init({ key: Buffer.from([0xd9, 0xc1, 0xbd, 0x60, 0x9c, 0x35, 0x3e, 0x8b, 0xab, 0xbc, 0x8d, 0x35, 0xc7, 0x04, 0x74, 0xef]) });
+        telnetLayer.open();
+        await telnetLayer.connected.first(c => c).toPromise();
 
-        const node = new RadioNode(radioLayer, 2);
-        node.data.subscribe(d => console.log(`rx: ${d.toString()}`))
+        const packageLayer = new PackageLayer(telnetLayer);
+        const radioLayer = new RadioLayer(packageLayer);
+
+
+        telnetLayer.open();
+       
+        const node = new RadioNode(radioLayer, 15);
+        node.data.subscribe(d => console.log(`rx: ${d.toString('hex')}`))
+
+        // for (let b = 0; b < 255; b += 10) {
+        //     await node.send(Buffer.from([4, b]));
+        //     await delay(100);
+        // }
+
+        // await Observable.concat(
+        //     node.send(Buffer.from([1, 100])),
+        //     Observable.timer(1000),
+        //     node.send(Buffer.from([1, 0])),
+        //     Observable.timer(1000),
+        // ).toPromise();
 
         const hexFile = await new Promise<Buffer>((resolve, reject) => {
-            readFile(`D:/Proiecte/rfm-sensors/sensor-template/.pioenvs/pro16MHzatmega328/firmware.hex`, (err, data) => {
+            readFile(`D:/Proiecte/rfm-sensors/sensor-light-dimmer/.pioenvs/pro16MHzatmega328/firmware.hex`, (err, data) => {
                 if (err) { reject(err); } else { resolve(data); }
             });
-        })
-        await node.upload(hexFile);
-        await delay(15000);
+        });
+        await node.upload(hexFile).toPromise();
+
+        // await delay(15000);
 
     } finally {
-        await serialLayer.close().catch(e => { });
+        telnetLayer.close();
     }
 }
 

@@ -2,66 +2,60 @@ import { MessageLayer } from './message';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 
-import 'rxjs/add/operator/groupBy'
-import 'rxjs/add/operator/concatMap'
-import 'rxjs/add/operator/mergeMap'
-import 'rxjs/add/operator/timeout'
-import 'rxjs/add/operator/catch'
-import 'rxjs/add/operator/toPromise'
-import 'rxjs/add/observable/throw'
-
 interface SendMessage {
-    to: number, data: Buffer, resolve: Function, reject: Function;
+    addr: number, data: Buffer, resolve: Function, reject: Function;
 }
 
-export class RadioLayer {
+export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> {
     private _sendQueue = new Subject<SendMessage>();
 
     constructor(
-        private below: MessageLayer,
+        private below: MessageLayer<Buffer>,
     ) {
         this._sendQueue
-            .groupBy(p => p.to)
-            .mergeMap(group => group.concatMap(async msg => this.sendInternal(msg)))
+            .groupBy(p => p.addr)
+            .mergeMap(group =>
+                group.concatMap(msg =>
+                    this.sendInternal(msg)
+                        .catch(err => {
+                            msg.reject(err);
+                            return Observable.empty();
+                        })
+                        .finally(() => msg.resolve())
+                ))
             .subscribe();
     }
 
-    private async sendInternal(msg: SendMessage) {
-        try {
-            const pack = new Buffer(2 + msg.data.length);
-            pack[0] = Constants.Cmd_SendPacket; // FRAME_SENDPACKET
-            pack[1] = msg.to;
-            msg.data.copy(pack, 2);
+    private sendInternal({ data, addr }: SendMessage) {
+        const pack = new Buffer(2 + data.length);
+        pack[0] = Constants.Cmd_SendPacket; // FRAME_SENDPACKET
+        pack[1] = addr;
+        data.copy(pack, 2);
 
-            await this.sendPacketAndWaitFor(pack,
-                r => {
-                    if (r[1] !== msg.to) return;
-                    switch (r[0]) {
-                        case Constants.Rsp_PacketSent: return true;
+        return this.sendPacketAndWaitFor(pack,
+            r => {
+                if (r[1] !== addr) return;
+                switch (r[0]) {
+                    case Constants.Rsp_PacketSent: return true;
 
-                        case Constants.Err_Addr: throw new Error(`invalid address ${r[1]}`);
-                        case Constants.Err_Busy: throw new Error(`address already busy ${r[1]}`);
-                        case Constants.Err_InvalidSize: throw new Error(`invalid size ${msg.data.length}`);
-                        case Constants.Err_Mem: throw new Error(`gw memory full`);
-                        case Constants.Err_Timeout: throw new Error(`timeout. no ack (${msg.to})`);
-                    }
-                });
-            msg.resolve(true);
-        } catch (err) {
-            msg.reject(err);
-        }
+                    case Constants.Err_Addr: throw new Error(`invalid address ${r[1]}`);
+                    case Constants.Err_Busy: throw new Error(`address already busy ${r[1]}`);
+                    case Constants.Err_InvalidSize: throw new Error(`invalid size ${data.length}`);
+                    case Constants.Err_Mem: throw new Error(`gw memory full`);
+                    case Constants.Err_Timeout: throw new Error(`timeout. no ack (${addr})`);
+                }
+            });
     }
 
-    private async sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 600) {
-        await this.below.send(packet);
-        await this.below.data
+    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 600) {
+        return this.below.data
             .filter(p => verifyReply(p))
             .first()
             .timeout(timeout)
-            .toPromise();
+            .merge(this.below.send(packet));
     }
 
-    async init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
+    init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
         const aux = new Buffer(100);
         let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
         if (key !== void 0) {
@@ -84,23 +78,31 @@ export class RadioLayer {
         if (offset !== 0) {
             const configure = new Buffer(offset);
             aux.copy(configure, 0, 0, offset);
-            await this.sendPacketAndWaitFor(configure, p => p.length == 2 && p[0] == Constants.Rsp_Configured);
+            return this.sendPacketAndWaitFor(configure, p => p.length == 2 && p[0] == Constants.Rsp_Configured);
         }
+        return Observable.empty<void>();
     }
 
-    get data(): Observable<{ from: number, data: Buffer }> {
+    get data() {
         return this.below
             .data
             .filter(p => p[0] === Constants.Rsp_ReceivePacket)
             .map(p => {
                 const msg = new Buffer(p.length - 2);
                 p.copy(msg, 0, 2, p.length);
-                return { data: msg, from: p[1] };
+                return { data: msg, addr: p[1] };
             });
     }
 
-    send(to: number, data: Buffer) {
-        return new Promise((resolve, reject) => this._sendQueue.next({ to, data, resolve, reject }));
+    send({ data, addr }: { addr: number, data: Buffer }) {
+        return new Observable<void>(observer => {
+            this._sendQueue.next({
+                addr,
+                data,
+                resolve: () => observer.complete(),
+                reject: err => observer.error(err),
+            });
+        });
     }
 }
 

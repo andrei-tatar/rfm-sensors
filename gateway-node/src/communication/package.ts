@@ -1,9 +1,6 @@
+import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { MessageLayer } from './message';
-
-import 'rxjs/add/operator/scan';
-import 'rxjs/add/operator/map';
-import 'rxjs/add/operator/filter';
 
 const FrameHeader1 = 0xDE, FrameHeader2 = 0x5B;
 
@@ -20,7 +17,7 @@ interface State {
     received: Buffer;
 }
 
-export class PackageLayer implements MessageLayer {
+export class PackageLayer implements MessageLayer<Buffer> {
     get data() {
         return this.below.data
             .scan(
@@ -42,7 +39,7 @@ export class PackageLayer implements MessageLayer {
             .map(v => v.received);
     }
 
-    constructor(private below: MessageLayer) {
+    constructor(private below: MessageLayer<Buffer>) {
     }
 
     private processReceivedData(state: State, rx: Buffer) {
@@ -100,7 +97,7 @@ export class PackageLayer implements MessageLayer {
         return checksum;
     }
 
-    async send(data: Buffer) {
+    send(data: Buffer) {
         const packet = new Buffer(data.length + 5);
         let offset = packet.writeUInt8(FrameHeader1, 0);
         offset = packet.writeUInt8(FrameHeader2, offset);
@@ -108,7 +105,6 @@ export class PackageLayer implements MessageLayer {
         offset += data.copy(packet, offset, 0, data.length);
         const checksum = this.getChecksum(data);
         packet.writeUInt16BE(checksum, offset);
-
-        await this.below.send(packet);
+        return this.below.send(packet);
     }
 }
