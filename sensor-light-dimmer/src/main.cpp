@@ -7,7 +7,7 @@
 #define PIN_LED 5
 #define PIN_TRIAC 6
 
-Sensor sensor;
+Sensor sensor(false);
 
 #define CMD_SET 1
 #define CMD_GET 2
