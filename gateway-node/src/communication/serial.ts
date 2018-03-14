@@ -1,8 +1,8 @@
-import * as SerialPort from 'serialport';
 import { Observable } from 'rxjs/Observable';
+import * as SerialPort from 'serialport';
 
-import { MessageLayer } from './message';
 import { Subject } from 'rxjs/Subject';
+import { MessageLayer } from './message';
 
 export class SerialLayer implements MessageLayer<Buffer> {
     private serial: SerialPort;
@@ -32,8 +32,11 @@ export class SerialLayer implements MessageLayer<Buffer> {
     close() {
         return new Promise<void>((resolve, reject) => {
             this.serial.close(err => {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
             });
         });
     }

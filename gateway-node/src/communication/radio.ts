@@ -1,9 +1,27 @@
-import { MessageLayer } from './message';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
+import { MessageLayer } from './message';
 
 interface SendMessage {
-    addr: number, data: Buffer, resolve: Function, reject: Function;
+    addr: number;
+    data: Buffer;
+    resolve: Function;
+    reject: Function;
+}
+
+class Constants {
+    static readonly Cmd_Configure = 0x90;
+    static readonly Rsp_Configured = 0x91;
+
+    static readonly Cmd_SendPacket = 0x92;
+    static readonly Rsp_PacketSent = 0x93;
+    static readonly Rsp_ReceivePacket = 0x94;
+
+    static readonly Err_InvalidSize = 0x71;
+    static readonly Err_Busy = 0x72;
+    static readonly Err_Addr = 0x73;
+    static readonly Err_Mem = 0x74;
+    static readonly Err_Timeout = 0x75;
 }
 
 export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> {
@@ -34,7 +52,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
 
         return this.sendPacketAndWaitFor(pack,
             r => {
-                if (r[1] !== addr) return;
+                if (r[1] !== addr) { return; }
                 switch (r[0]) {
                     case Constants.Rsp_PacketSent: return true;
 
@@ -59,7 +77,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         const aux = new Buffer(100);
         let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
         if (key !== void 0) {
-            if (key.length !== 16) throw new Error(`Invalid AES-128 key size (${key.length})`);
+            if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
             offset = aux.writeUInt8('K'.charCodeAt(0), offset);
             offset += key.copy(aux, offset);
         }
@@ -78,7 +96,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         if (offset !== 0) {
             const configure = new Buffer(offset);
             aux.copy(configure, 0, 0, offset);
-            return this.sendPacketAndWaitFor(configure, p => p.length == 2 && p[0] == Constants.Rsp_Configured);
+            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured);
         }
         return Observable.empty<void>();
     }
@@ -104,21 +122,6 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             });
         });
     }
-}
-
-class Constants {
-    static readonly Cmd_Configure = 0x90;
-    static readonly Rsp_Configured = 0x91;
-
-    static readonly Cmd_SendPacket = 0x92;
-    static readonly Rsp_PacketSent = 0x93;
-    static readonly Rsp_ReceivePacket = 0x94;
-
-    static readonly Err_InvalidSize = 0x71;
-    static readonly Err_Busy = 0x72;
-    static readonly Err_Addr = 0x73;
-    static readonly Err_Mem = 0x74;
-    static readonly Err_Timeout = 0x75;
 }
 
 interface RadioConfig {

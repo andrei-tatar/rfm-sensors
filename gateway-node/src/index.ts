@@ -1,28 +1,23 @@
-import { Observable } from 'rxjs/Observable';
-import { MessageLayer } from './communication/message';
-import './vendor';
-import { RadioNode } from './node';
-import { RadioLayer } from './communication/radio';
-import { SerialLayer } from './communication/serial';
+import { RadioNode } from './communication/node';
 import { PackageLayer } from './communication/package';
+import { RadioLayer } from './communication/radio';
+import { Telnet } from './communication/telnet';
+import './vendor';
 
 import { readFile } from 'fs';
-import { Telnet } from './communication/telnet';
+
+const logger: Logger = console;
 
 async function test() {
-    const telnetLayer = new Telnet('192.168.1.51');
+    const telnetLayer = new Telnet(logger, '192.168.1.51');
     try {
         telnetLayer.open();
         await telnetLayer.connected.first(c => c).toPromise();
-
         const packageLayer = new PackageLayer(telnetLayer);
         const radioLayer = new RadioLayer(packageLayer);
-
-
-        telnetLayer.open();
-       
         const node = new RadioNode(radioLayer, 15);
-        node.data.subscribe(d => console.log(`rx: ${d.toString('hex')}`))
+
+        node.data.subscribe(d => logger.info(`rx: ${d.toString('hex')}`));
 
         // for (let b = 0; b < 255; b += 10) {
         //     await node.send(Buffer.from([4, b]));
@@ -37,7 +32,7 @@ async function test() {
         // ).toPromise();
 
         const hexFile = await new Promise<Buffer>((resolve, reject) => {
-            readFile(`D:/Proiecte/rfm-sensors/sensor-light-dimmer/.pioenvs/pro16MHzatmega328/firmware.hex`, (err, data) => {
+            readFile(`C:/test.hex`, (err, data) => {
                 if (err) { reject(err); } else { resolve(data); }
             });
         });
@@ -55,5 +50,5 @@ function delay(time: number) {
 }
 
 test().catch(err => {
-    console.error(err);
+    logger.error(err);
 });

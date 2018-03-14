@@ -1,5 +1,4 @@
 import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
 import { MessageLayer } from './message';
 
 const FrameHeader1 = 0xDE, FrameHeader2 = 0x5B;
@@ -46,7 +45,7 @@ export class PackageLayer implements MessageLayer<Buffer> {
         for (const data of rx) {
             switch (state.status) {
                 case RxStatus.Idle:
-                    if (data === FrameHeader1) state.status = RxStatus.Header;
+                    if (data === FrameHeader1) { state.status = RxStatus.Header; }
                     break;
                 case RxStatus.Header:
                     state.status = data === FrameHeader2 ? RxStatus.Size : RxStatus.Idle;
@@ -59,7 +58,7 @@ export class PackageLayer implements MessageLayer<Buffer> {
                     break;
                 case RxStatus.Data:
                     state.offset = state.buffer.writeUInt8(data, state.offset);
-                    if (state.offset === state.buffer.length) state.status = RxStatus.Checksum1;
+                    if (state.offset === state.buffer.length) { state.status = RxStatus.Checksum1; }
                     break;
                 case RxStatus.Checksum1:
                     state.chkSum = data << 8;
@@ -86,11 +85,11 @@ export class PackageLayer implements MessageLayer<Buffer> {
 
         const size = data.length;
         for (let i = 0; i <= size; i++) {
-            const byte = i == 0 ? size : data[i - 1];
-            const roll = (checksum & 0x8000) != 0 ? true : false;
+            const byte = i === 0 ? size : data[i - 1];
+            const roll = (checksum & 0x8000) !== 0 ? true : false;
             checksum <<= 1;
             checksum &= 0xFFFF;
-            if (roll) checksum |= 1;
+            if (roll) { checksum |= 1; }
             checksum ^= byte;
         }
 
@@ -98,13 +97,15 @@ export class PackageLayer implements MessageLayer<Buffer> {
     }
 
     send(data: Buffer) {
-        const packet = new Buffer(data.length + 5);
-        let offset = packet.writeUInt8(FrameHeader1, 0);
-        offset = packet.writeUInt8(FrameHeader2, offset);
-        offset = packet.writeUInt8(data.length, offset);
-        offset += data.copy(packet, offset, 0, data.length);
-        const checksum = this.getChecksum(data);
-        packet.writeUInt16BE(checksum, offset);
-        return this.below.send(packet);
+        return Observable.defer(() => {
+            const packet = new Buffer(data.length + 5);
+            let offset = packet.writeUInt8(FrameHeader1, 0);
+            offset = packet.writeUInt8(FrameHeader2, offset);
+            offset = packet.writeUInt8(data.length, offset);
+            offset += data.copy(packet, offset, 0, data.length);
+            const checksum = this.getChecksum(data);
+            packet.writeUInt16BE(checksum, offset);
+            return this.below.send(packet);
+        });
     }
 }
