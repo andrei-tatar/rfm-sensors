@@ -1,13 +1,17 @@
 #include "main.h"
 
-RFM69 radio(spi_Transfer, millis, true);
+RFM69 radio(spi_Transfer, millis);
 bool inited = false;
 
 #define SEND_RETRIES 	10
 #define RETRY_INTERVAL 	50
 
+uint32_t lastSendTime;
+uint8_t sendBuffer[RF69_MAX_DATA_LEN], sendSize, sendRetries;
+uint8_t sendTo;
+
 #define MIN_ADDR	2
-#define MAX_ADDR	50
+#define MAX_ADDR	255
 #define SENSORS (MAX_ADDR - MIN_ADDR + 1)
 static SensorState sensors[SENSORS];
 
@@ -58,7 +62,7 @@ void setup() {
 		sensors[i].nextSendNonce = createNonce();
 	}
 
-	inited = radio.initialize(RF69_433MHZ, 1);
+	inited = radio.initialize(RF69_433MHZ, 1, 1, true);
 	debug("Radio inited: %d\r\n", inited);
 }
 
@@ -73,31 +77,29 @@ void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
 	debugHex("TX", to, data, sizeof(data));
 }
 
-void sendDone(SensorState &sensor) {
-	sensor.retries = 0;
-	sensor.size = 0;
+void sendRadioDone() {
+	sendRetries = 0;
+	sendSize = 0;
 }
 
-void sendData(SensorState& sensor, uint8_t to) {
-	if (!sensor.data)
-		return;
-	writeNonce(&sensor.data[1], sensor.nextSendNonce);
-	radio.send(to, sensor.data, sensor.size);
-	debugHex("TX", to, sensor.data, sensor.size);
-	sensor.lastSendTime = millis();
+void sendRadioNow() {
+	SensorState& sensor = sensors[sendTo - MIN_ADDR];
+	writeNonce(&sendBuffer[1], sensor.nextSendNonce);
+	radio.send(sendTo, sendBuffer, sendSize);
+	debugHex("TX", to, sendBuffer, sendSize);
+	lastSendTime = millis();
 }
 
-uint8_t send(uint8_t to, const uint8_t *data, uint8_t size) {
-	SensorState &sensor = sensors[to - MIN_ADDR];
-	if (sensor.retries)
+uint8_t sendRadio(uint8_t to, const uint8_t *data, uint8_t size) {
+	if (sendRetries)
 		return FRAME_ERR_BUSY;
-	sensor.size = size + 5;
-	if (sensor.data == NULL)
-		return FRAME_ERR_MEM;
-	sensor.data[0] = MsgType::Data;
-	sensor.retries = SEND_RETRIES;
-	memcpy(&sensor.data[5], data, size);
-	sendData(sensor, to);
+	
+	sendTo = to;
+	sendSize = size + 5;
+	sendBuffer[0] = MsgType::Data;
+	sendRetries = SEND_RETRIES;
+	memcpy(&sendBuffer[5], data, size);
+	sendRadioNow();
 	return 0;
 }
 
@@ -115,7 +117,7 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 			serialSendFrame(FRAME_ERR_INVALID_SIZE, to, NULL, 0);
 			return;
 		}
-		uint8_t err = send(to, data, size);
+		uint8_t err = sendRadio(to, data, size);
 		if (err != 0) {
 			serialSendFrame(err, to, NULL, 0);
 		}
@@ -195,7 +197,7 @@ void onRadioPacketReceived(RfmPacket &packet) {
 			break;
 
 		sensor.nextSendNonce = readNonce(&data[4]);
-		sendDone(sensor);
+		sendRadioDone();
 		serialSendFrame(FRAME_PACKETSENT, packet.from, NULL, 0);
 	}
 		break;
@@ -205,7 +207,7 @@ void onRadioPacketReceived(RfmPacket &packet) {
 			break;
 
 		sensor.nextSendNonce = readNonce(&data[4]);
-		sendData(sensor, packet.from);
+		sendRadioNow();
 	}
 		break;
 
@@ -234,16 +236,13 @@ void loop() {
 		interrupts();
 	}
 
-	for (uint8_t i = 0; i < SENSORS; i++) {
-		SensorState &sensor = sensors[i];
-		if (sensor.retries && millis() >= sensor.lastSendTime + RETRY_INTERVAL) {
-			sensor.retries--;
-			if (sensor.retries == 0) {
-				sendDone(sensor);
-				serialSendFrame(FRAME_ERR_TIMEOUT, i + MIN_ADDR, NULL, 0);
-			} else {
-				sendData(sensor, i + MIN_ADDR);
-			}
+	if (sendRetries && millis() >= lastSendTime + RETRY_INTERVAL) {
+		sendRetries--;
+		if (sendRetries == 0) {
+			sendRadioDone();
+			serialSendFrame(FRAME_ERR_TIMEOUT, sendTo, NULL, 0);
+		} else {
+			sendRadioNow();
 		}
 	}
 }
@@ -258,9 +257,7 @@ PE_ISR(portDInterrupt) {
 			return;
 		}
 		RfmPacket& packet = radioQueue[radioTail];
-		packet.size = 0;
-		radio.interrupt(packet);
-		if (packet.size && packet.from >= MIN_ADDR && packet.from <= MAX_ADDR) {
+		if (radio.receive(packet) && packet.from >= MIN_ADDR && packet.from <= MAX_ADDR) {
 			noInterrupts();
 			radioCount++;
 			if (++radioTail == RADIO_QUEUE_SIZE)

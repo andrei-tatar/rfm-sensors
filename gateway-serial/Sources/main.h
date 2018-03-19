@@ -20,8 +20,6 @@
 typedef struct {
 	uint32_t nextSendNonce;
 	uint32_t oldReceiveNonce, nextReceiveNonce;
-	uint32_t lastSendTime;
-	uint8_t data[RF69_MAX_DATA_LEN], size, retries;
 } SensorState;
 
 typedef enum {
