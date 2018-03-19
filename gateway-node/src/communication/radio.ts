@@ -33,11 +33,11 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         this._sendQueue
             .concatMap(msg =>
                 this.sendInternal(msg)
+                    .do(() => { }, () => { }, () => msg.resolve())
                     .catch(err => {
                         msg.reject(err);
                         return Observable.empty();
                     })
-                    .finally(() => msg.resolve())
             )
             .subscribe();
     }
