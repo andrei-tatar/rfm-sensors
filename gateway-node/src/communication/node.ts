@@ -9,7 +9,7 @@ export class RadioNode implements MessageLayer<Buffer> {
 
     constructor(
         private below: MessageLayer<{ addr: number, data: Buffer }>,
-        private address: number,
+        public readonly address: number,
     ) {
     }
 
