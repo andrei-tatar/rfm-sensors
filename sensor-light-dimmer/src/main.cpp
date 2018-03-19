@@ -214,6 +214,7 @@ bool handleTouchEvents()
     static uint32_t nextManualChange;
     static bool increaseLevel = true;
     static uint8_t lastTouchState = LOW;
+    uint8_t initialBrightness = brightness;
     if (touchState != lastTouchState)
     {
         lastTouchState = touchState;
@@ -289,10 +290,9 @@ bool handleTouchEvents()
                         brightness--;
                 }
             }
-            return true;
         }
     }
-    return false;
+    return initialBrightness != brightness;
 }
 
 void loop()
@@ -300,16 +300,9 @@ void loop()
     auto now = millis();
 
     handleRamp(now);
-    auto touchPresent = handleTouchEvents();
-
-    if (!touchPresent)
+    if (handleTouchEvents())
     {
-        static uint8_t lastSentBrightness;
-        if (brightness != lastSentBrightness)
-        {
-            lastSentBrightness = brightness;
-            sendState();
-        }
+        sendState();
     }
 
     sensor.update();

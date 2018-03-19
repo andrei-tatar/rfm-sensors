@@ -31,16 +31,14 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         private below: MessageLayer<Buffer>,
     ) {
         this._sendQueue
-            .groupBy(p => p.addr)
-            .mergeMap(group =>
-                group.concatMap(msg =>
-                    this.sendInternal(msg)
-                        .catch(err => {
-                            msg.reject(err);
-                            return Observable.empty();
-                        })
-                        .finally(() => msg.resolve())
-                ))
+            .concatMap(msg =>
+                this.sendInternal(msg)
+                    .catch(err => {
+                        msg.reject(err);
+                        return Observable.empty();
+                    })
+                    .finally(() => msg.resolve())
+            )
             .subscribe();
     }
 
@@ -52,7 +50,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
 
         return this.sendPacketAndWaitFor(pack,
             r => {
-                if (r[1] !== addr) { return; }
+                if (r[1] !== addr) { return false; }
                 switch (r[0]) {
                     case Constants.Rsp_PacketSent: return true;
 
@@ -70,7 +68,13 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             .filter(p => verifyReply(p))
             .first()
             .timeout(timeout)
-            .merge(this.below.send(packet));
+            .merge(this.below.send(packet))
+            .catch(err => {
+                if (err.name === 'TimeoutError') {
+                    return Observable.throw(new Error(`timeout sending ${packet.toString('hex')}`));
+                }
+                return Observable.throw(err);
+            });
     }
 
     init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {

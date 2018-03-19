@@ -17,7 +17,7 @@ export class RadioNode implements MessageLayer<Buffer> {
         return this.below.send({
             addr: this.address,
             data,
-        });
+        }).retry(3);
     }
 
     upload(hex: Buffer, progress: Observer<number> = null) {

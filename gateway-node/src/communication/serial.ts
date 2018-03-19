@@ -22,6 +22,7 @@ export class SerialLayer implements MessageLayer<Buffer> {
     open() {
         return new Promise<void>((resolve, reject) => {
             this.serial.on('open', () => {
+                this.serial.set({ dtr: false });
                 resolve();
             });
             this.serial.on('error', reject);
