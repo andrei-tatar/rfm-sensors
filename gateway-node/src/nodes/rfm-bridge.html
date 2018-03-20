@@ -1,0 +1,31 @@
+<script type="text/javascript">
+    RED.nodes.registerType('rfm-bridge', {
+        category: 'config',
+        defaults: {
+            name: { value: 'Bridge' },
+            port: { value: 'COM7', required: true },
+            key: { value: '', required: true, validate: RED.validators.regex(/[a-f0-9]{32}/) },
+        },
+        label: function () { return this.name || 'Tab'; }
+    });
+
+</script>
+
+<script type="text/x-red" data-template-name="rfm-bridge">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-port"><i class="fa fa-sort"></i> Port</label>
+        <input type="text" id="node-config-input-port">
+    </div>
+    <div class="form-row">
+        <label for="node-input-key"><i class="fa fa-key"></i> Key</label>
+        <input type="text" id="node-input-key" placeholder="16 bytes hex without spaces/0x">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="rfm-bridge">
+    <p>Bridge</p>
+</script>

@@ -1,0 +1,62 @@
+<script type="text/javascript">
+    RED.nodes.registerType('rfm-dimmer', {
+        category: 'rfm',
+        color: '#e6a4a5',
+        defaults: {
+            bridge: { type: 'rfm-bridge', required: true },
+            name: { value: 'Dimmer' },
+            topic: { value: '' },
+            address: { value: 10, required: true, validate: RED.validators.regex(/\d+/) },
+            manual: { value: true },
+            manualdimm: { value: false },
+            maxbrightness: { value: 100, required: true, validate: function (n) { return n >= 10 && n <= 100 } },
+            ledbrightness: { value: 255, required: true, validate: function (n) { return n >= 0 && n <= 255 } },
+
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "bridge-dash.png",
+        paletteLabel: 'dimmer',
+        label: function () { return this.name || 'dimmer'; }
+    });
+
+</script>
+
+<script type="text/x-red" data-template-name="rfm-dimmer">
+    <div class="form-row">
+        <label for="node-input-bridge"><i class="fa fa-table"></i> Bridge</label>
+        <input type="text" id="node-input-bridge">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="fa fa-commenting"></i> Topic</label>
+        <input type="text" id="node-input-topic">
+    </div>
+    <div class="form-row">
+        <label for="node-input-address"><i class="fa fa-key"></i> Address</label>
+        <input type="text" id="node-input-address" placeholder="Node address">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxbrightness" style="width:50%"><i class="fa fa-lightbulb-o"></i> Max manual brightness</label>
+        <input type="text" id="node-input-maxbrightness" style="width:30%">
+    </div>
+    <div class="form-row">
+        <label for="node-input-ledbrightness" style="width:50%"><i class="fa fa-lightbulb-o"></i> Default LED brightness</label>
+        <input type="text" id="node-input-ledbrightness" style="width:30%">
+    </div>
+    <div class="form-row">
+        <label style="width:50%" for="node-input-manual"><i class="fa fa-arrow-right"></i> Allow manual control: </label>
+        <input type="checkbox" checked id="node-input-manual" style="display:inline-block; width:auto; vertical-align:top;">
+    </div>
+    <div class="form-row">
+        <label style="width:50%" for="node-input-manualdimm"><i class="fa fa-arrow-right"></i> Allow manual dimm control: </label>
+        <input type="checkbox" checked id="node-input-manualdimm" style="display:inline-block; width:auto; vertical-align:top;">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="rfm-dimmer">
+    <p>Dimmer node.<br><code>msg.payload</code> changes the bulb brightness;<br><code>msg.payload</code> with <code>msg.type</code> set to <code>'led'</code> changes the led brightness;</p>
+</script>
