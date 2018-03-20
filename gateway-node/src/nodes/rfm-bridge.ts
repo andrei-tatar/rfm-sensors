@@ -5,6 +5,8 @@ import { RadioLayer } from './../communication/radio';
 
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 
+import '../vendor';
+
 module.exports = function (RED) {
     function BridgeNode(config) {
         RED.nodes.createNode(this, config);

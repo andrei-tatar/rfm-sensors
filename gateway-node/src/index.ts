@@ -9,7 +9,6 @@ import './vendor';
 import { readFile } from 'fs';
 
 import { Observable } from 'rxjs/Observable';
-//import { queue } from 'rxjs/Scheduler/queue'
 import { SerialLayer } from './communication/serial';
 
 const logger: Logger = console;
@@ -67,7 +66,7 @@ async function test() {
             });
             const progress = new Subject<number>();
             progress
-//                .debounceTime(600)
+                // .debounceTime(600)
                 .subscribe(p => logger.info(`progress: ${p}`));
             await node.upload(hexFile, progress).toPromise();
             await delay(1000);
