@@ -20,9 +20,9 @@ module.exports = function (RED) {
 
         serial
             .open()
-            .then(() => radioLayer.init({ key: Buffer.from(config.key) }))
+            .then(() => radioLayer.init({ key: Buffer.from(config.key, 'hex') }))
             .then(() => node.connected.next(true))
-            .catch(err => node.error(`initializing communication`, err));
+            .catch(err => node.error(`while initializing communication ${err.message}`));
 
         node.create = (address: number) => new RadioNode(radioLayer, address);
 
