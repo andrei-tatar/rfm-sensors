@@ -13,14 +13,14 @@ export class RadioNode implements MessageLayer<Buffer> {
     ) {
     }
 
-    send(data: Buffer) {
+    send(data: Buffer, retry = 3) {
         return this.below
             .send({
                 addr: this.address,
                 data,
             })
             .catch(err => Observable.throw(err).materialize().delay(200).dematerialize())
-            .retry(3);
+            .retry(retry);
     }
 
     upload(hex: Buffer, progress: Observer<number> = null) {
@@ -65,7 +65,14 @@ export class RadioNode implements MessageLayer<Buffer> {
             })
             .first()
             .timeout(timeout)
-            .merge(this.send(Buffer.from([0xCA])));
+            .catch(err => {
+                if (err.name === 'TimeoutError') {
+                    throw new Error('timeout waiting for OTA start');
+                }
+                throw err;
+            })
+            .merge(this.send(Buffer.from([0xCA]), 1))
+            .retry(3);
     }
 
     private writeAt(addr: number, data: Buffer, tries = 3) {

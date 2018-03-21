@@ -63,7 +63,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             });
     }
 
-    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 600) {
+    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 1000) {
         return this.below.data
             .filter(p => verifyReply(p))
             .first()
@@ -71,9 +71,9 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             .merge(this.below.send(packet))
             .catch(err => {
                 if (err.name === 'TimeoutError') {
-                    return Observable.throw(new Error(`timeout sending ${packet.toString('hex')}`));
+                    throw new Error('timeout sending data');
                 }
-                return Observable.throw(err);
+                throw err;
             });
     }
 
