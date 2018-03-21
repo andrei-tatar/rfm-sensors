@@ -20,7 +20,12 @@ module.exports = function (RED) {
 
         serial
             .open()
-            .then(() => radioLayer.init({ key: Buffer.from(config.key, 'hex') }).toPromise())
+            .then(() => radioLayer
+                .init({
+                    key: Buffer.from(config.key, 'hex'),
+                    powerLevel: 31
+                })
+                .toPromise())
             .then(() => node.connected.next(true))
             .catch(err => node.error(`while initializing communication ${err.message}`));
 

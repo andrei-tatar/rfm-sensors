@@ -93,6 +93,13 @@ module.exports = function (RED) {
                 nodeLayer
                     .send(Buffer.from([1, value]))
                     .toPromise()
+                    .then(() => {
+                        // fwd to output when succesful
+                        node.send({
+                            payload: value,
+                            topic: config.topic,
+                        });
+                    })
                     .catch(err => node.error(`while setting bright: ${err.message}`));
             }
         });
