@@ -51,7 +51,7 @@ module.exports = function (RED) {
                 nodeLayer.data.startWith(null).merge(updateStatus).timestamp(),
                 Observable.interval(30000).startWith(0))
             .takeUntil(stop)
-            .skipWhile(() => uploading)
+            .filter(() => !uploading)
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg ? `(${moment(msg.timestamp).fromNow()})` : '';
 
