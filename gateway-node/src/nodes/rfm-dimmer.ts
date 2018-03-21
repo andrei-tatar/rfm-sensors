@@ -42,9 +42,11 @@ module.exports = function (RED) {
                 }
             });
 
+        const updateStatus = new Subject();
+
         Observable
             .combineLatest(connected,
-                nodeLayer.data.startWith(null).timestamp(),
+                nodeLayer.data.startWith(null).merge(updateStatus).timestamp(),
                 Observable.interval(30000).startWith(0))
             .takeUntil(stop)
             .subscribe(([isConnected, msg]) => {
@@ -79,27 +81,46 @@ module.exports = function (RED) {
             });
 
         node.on('input', msg => {
-            const value = Math.min(100, Math.max(0, parseInt(msg.payload, 10) || 0));
-            if (msg.type === 'led') {
-                ledBrightness = value;
-                // set led bright
-                nodeLayer
-                    .send(Buffer.from([4, ledBrightness]))
-                    .toPromise()
-                    .catch(err => node.error(`while setting led bright: ${err.message}`));
-            } else {
-                // set bright
-                nodeLayer
-                    .send(Buffer.from([1, value]))
+            if (msg.type === 'firmware') {
+                const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
+                const progress = new Subject<number>();
+                progress.throttleTime(1000).subscribe(p => {
+                    node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
+                });
+                nodeLayer.upload(hex, progress)
                     .toPromise()
                     .then(() => {
-                        // fwd to output when succesful
-                        node.send({
-                            payload: value,
-                            topic: config.topic,
-                        });
+                        node.status({ fill: 'green', shape: 'dot', text: `upload done!` });
+                        return Observable.timer(1000).toPromise();
                     })
-                    .catch(err => node.error(`while setting bright: ${err.message}`));
+                    .catch(err => node.console.error(`while uploading hex: ${err.message}`))
+                    .then(() => updateStatus.next());
+            } else {
+                const value = Math.min(100, Math.max(0, parseInt(msg.payload, 10)));
+                if (!isFinite(value)) {
+                    return;
+                }
+                if (msg.type === 'led') {
+                    ledBrightness = value;
+                    // set led bright
+                    nodeLayer
+                        .send(Buffer.from([4, ledBrightness]))
+                        .toPromise()
+                        .catch(err => node.error(`while setting led bright: ${err.message}`));
+                } else {
+                    // set bright
+                    nodeLayer
+                        .send(Buffer.from([1, value]))
+                        .toPromise()
+                        .then(() => {
+                            // fwd to output when succesful
+                            node.send({
+                                payload: value,
+                                topic: config.topic,
+                            });
+                        })
+                        .catch(err => node.error(`while setting bright: ${err.message}`));
+                }
             }
         });
 
