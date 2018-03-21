@@ -43,12 +43,14 @@ module.exports = function (RED) {
             });
 
         const updateStatus = new Subject();
+        let uploading = false;
 
         Observable
             .combineLatest(connected,
                 nodeLayer.data.startWith(null).merge(updateStatus).timestamp(),
                 Observable.interval(30000).startWith(0))
             .takeUntil(stop)
+            .skipWhile(() => uploading)
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg ? `(${moment(msg.timestamp).fromNow()})` : '';
 
@@ -87,14 +89,18 @@ module.exports = function (RED) {
                 progress.throttleTime(1000).subscribe(p => {
                     node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
+                uploading = true;
                 nodeLayer.upload(hex, progress)
                     .toPromise()
                     .then(() => {
                         node.status({ fill: 'green', shape: 'dot', text: `upload done!` });
                         return Observable.timer(1000).toPromise();
                     })
-                    .catch(err => node.console.error(`while uploading hex: ${err.message}`))
-                    .then(() => updateStatus.next());
+                    .catch(err => node.error(`while uploading hex: ${err.message}`))
+                    .then(() => {
+                        uploading = false;
+                        updateStatus.next();
+                    });
             } else {
                 const value = Math.min(100, Math.max(0, parseInt(msg.payload, 10)));
                 if (!isFinite(value)) {
