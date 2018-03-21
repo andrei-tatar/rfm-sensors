@@ -3,7 +3,6 @@ import { RadioNode } from '../communication/node';
 import * as moment from 'moment';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
-import { Subscription } from 'rxjs/Subscription';
 
 module.exports = function (RED) {
 
