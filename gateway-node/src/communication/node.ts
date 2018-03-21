@@ -14,10 +14,13 @@ export class RadioNode implements MessageLayer<Buffer> {
     }
 
     send(data: Buffer) {
-        return this.below.send({
-            addr: this.address,
-            data,
-        }).retry(3);
+        return this.below
+            .send({
+                addr: this.address,
+                data,
+            })
+            .catch(err => Observable.throw(err).materialize().delay(200).dematerialize())
+            .retry(3);
     }
 
     upload(hex: Buffer, progress: Observer<number> = null) {

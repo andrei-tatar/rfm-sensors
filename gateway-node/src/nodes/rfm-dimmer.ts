@@ -34,6 +34,7 @@ module.exports = function (RED) {
             .combineLatest(connected, periodicSync)
             .filter(([isConnected]) => isConnected)
             .takeUntil(stop)
+            .delayWhen(i => Observable.of(Math.round(Math.random() * 50) * 200))
             .subscribe(async ([isConnected, index]) => {
                 try {
                     await syncState().toPromise();
@@ -59,7 +60,8 @@ module.exports = function (RED) {
                     : { fill: 'red', shape: 'ring', text: 'not connected' });
             });
 
-        const syncRequest = nodeLayer.data.filter(d => d.length === 1 && d[0] === 1)
+        const syncRequest = nodeLayer.data
+            .filter(d => d.length === 1 && d[0] === 1)
             .takeUntil(stop)
             .subscribe(async () => {
                 try {
