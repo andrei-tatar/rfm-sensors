@@ -53,7 +53,7 @@ module.exports = function (RED) {
             .takeUntil(stop)
             .filter(() => !uploading)
             .subscribe(([isConnected, msg]) => {
-                const lastMessage = msg ? `(${moment(msg.timestamp).fromNow()})` : '';
+                const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
                 node.status(isConnected
                     ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
