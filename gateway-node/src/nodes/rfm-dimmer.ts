@@ -67,8 +67,7 @@ module.exports = function (RED) {
 
         const dimmerBrightness = nodeLayer.data
             .filter(d => d.length === 2 && d[0] === 2)
-            .map(d => d[1])
-            .distinctUntilChanged();
+            .map(d => d[1]);
 
         dimmerBrightness
             .takeUntil(stop)
