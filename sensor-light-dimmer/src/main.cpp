@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <sensor.h>
 #include <avr/pgmspace.h>
+#include <avr/wdt.h>
 
 #define PIN_ZERO 3
 #define PIN_TOUCH 4
@@ -78,7 +79,7 @@ void zeroCross()
 
 void setup()
 {
-    delay(5000); //wait for power to stabilize
+    delay(1000); //wait for power to stabilize
     sensor.init();
     sensor.onMessage(onData);
 
@@ -104,6 +105,7 @@ void setup()
 
     uint8_t announce = RSP_INIT;
     sensor.send(&announce, 1);
+    wdt_enable(WDTO_2S);
 }
 
 ISR(TIMER1_COMPA_vect)
@@ -297,6 +299,7 @@ bool handleTouchEvents()
 
 void loop()
 {
+    wdt_reset();
     auto now = millis();
 
     handleRamp(now);
