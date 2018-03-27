@@ -1,0 +1,8 @@
+.pioenvs
+.piolibdeps
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.travis.yml
+lib/readme.txt
+.vscode/*.db
+.vscode/.browse.c_cpp.db*
