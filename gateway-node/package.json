@@ -27,6 +27,7 @@
   "node-red": {
     "nodes": {
       "rfm-bridge": "dist/nodes/rfm-bridge.js",
+      "rfm-input": "dist/nodes/rfm-input.js",
       "rfm-dimmer": "dist/nodes/rfm-dimmer.js",
       "rfm-raw": "dist/nodes/rfm-raw.js"
     }

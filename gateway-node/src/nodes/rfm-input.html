@@ -1,0 +1,31 @@
+<script type="text/javascript">
+    RED.nodes.registerType('rfm-input', {
+        category: 'rfm',
+        color: '#e6a4a5',
+        defaults: {
+            bridge: { type: 'rfm-bridge', required: true },
+            name: { value: 'Input' },
+        },
+        inputs: 0,
+        outputs: 1,
+        icon: "bridge-dash.png",
+        paletteLabel: 'input',
+        label: function () { return this.name || 'input'; }
+    });
+
+</script>
+
+<script type="text/x-red" data-template-name="rfm-input">
+    <div class="form-row">
+        <label for="node-input-bridge"><i class="fa fa-table"></i> Bridge</label>
+        <input type="text" id="node-input-bridge">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="rfm-input">
+    <p>Input sensor</p>
+</script>
