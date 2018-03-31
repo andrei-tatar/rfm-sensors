@@ -3,9 +3,9 @@ import { Observer } from 'rxjs/Observer';
 import { MessageLayer } from './message';
 
 export class RadioNode implements MessageLayer<Buffer> {
-    get data() {
-        return this.below.data.filter(d => d.addr === this.address && [0xCA, 0xCB, 0xCC].indexOf(d.data[0]) === -1).map(p => p.data);
-    }
+    readonly data = this.below
+        .data
+        .filter(d => d.addr === this.address && [0xCA, 0xCB, 0xCC].indexOf(d.data[0]) === -1).map(p => p.data);
 
     constructor(
         private below: MessageLayer<{ addr: number, data: Buffer }>,

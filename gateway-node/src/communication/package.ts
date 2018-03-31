@@ -14,34 +14,40 @@ interface State {
     offset: number;
     chkSum: number;
     received: Buffer;
+    last: number;
 }
 
 export class PackageLayer implements MessageLayer<Buffer> {
-    get data() {
-        return this.below.data
-            .scan(
-                (state, value) => {
-                    if (state.received) {
-                        state.received = null;
-                    }
-                    this.processReceivedData(state, value);
-                    return state;
-                }, {
-                    status: RxStatus.Idle,
-                    buffer: null,
-                    offset: 0,
-                    chkSum: 0,
-                    size: 0,
-                    received: null,
-                } as State)
-            .filter(v => v.received !== null)
-            .map(v => v.received);
-    }
+    readonly data = this.below.data
+        .scan(
+            (state, value) => {
+                if (state.received) {
+                    state.received = null;
+                }
+                this.processReceivedData(state, value);
+                return state;
+            }, {
+                status: RxStatus.Idle,
+                buffer: null,
+                offset: 0,
+                chkSum: 0,
+                size: 0,
+                last: 0,
+                received: null,
+            } as State)
+        .filter(v => v.received !== null)
+        .map(v => v.received)
+        .share();
 
     constructor(private below: MessageLayer<Buffer>) {
     }
 
     private processReceivedData(state: State, rx: Buffer) {
+        const now = new Date().getTime();
+        if (now - state.last > 300) {
+            state.status = RxStatus.Idle;
+        }
+        state.last = now;
         for (const data of rx) {
             switch (state.status) {
                 case RxStatus.Idle:

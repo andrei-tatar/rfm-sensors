@@ -27,6 +27,16 @@ class Constants {
 export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> {
     private _sendQueue = new Subject<SendMessage>();
 
+    readonly data = this.below
+        .data
+        .filter(p => p[0] === Constants.Rsp_ReceivePacket)
+        .map(p => {
+            const msg = new Buffer(p.length - 2);
+            p.copy(msg, 0, 2, p.length);
+            return { data: msg, addr: p[1] };
+        })
+        .share();
+
     constructor(
         private below: MessageLayer<Buffer>,
     ) {
@@ -40,6 +50,45 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
                     })
             )
             .subscribe();
+    }
+
+    init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
+        const aux = new Buffer(100);
+        let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
+        if (key !== void 0) {
+            if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
+            offset = aux.writeUInt8('K'.charCodeAt(0), offset);
+            offset += key.copy(aux, offset);
+        }
+        if (freq !== void 0) {
+            offset = aux.writeUInt8('F'.charCodeAt(0), offset);
+            offset = aux.writeUInt32LE(freq, offset);
+        }
+        if (networkId !== void 0) {
+            offset = aux.writeUInt8('N'.charCodeAt(0), offset);
+            offset = aux.writeUInt8(networkId, offset);
+        }
+        if (powerLevel !== void 0) {
+            offset = aux.writeUInt8('P'.charCodeAt(0), offset);
+            offset = aux.writeUInt8(powerLevel, offset);
+        }
+        if (offset !== 0) {
+            const configure = new Buffer(offset);
+            aux.copy(configure, 0, 0, offset);
+            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured);
+        }
+        return Observable.empty<void>();
+    }
+
+    send({ data, addr }: { addr: number, data: Buffer }) {
+        return new Observable<void>(observer => {
+            this._sendQueue.next({
+                addr,
+                data,
+                resolve: () => observer.complete(),
+                reject: err => observer.error(err),
+            });
+        });
     }
 
     private sendInternal({ data, addr }: SendMessage) {
@@ -75,56 +124,6 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
                 }
                 throw err;
             });
-    }
-
-    init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
-        const aux = new Buffer(100);
-        let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
-        if (key !== void 0) {
-            if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
-            offset = aux.writeUInt8('K'.charCodeAt(0), offset);
-            offset += key.copy(aux, offset);
-        }
-        if (freq !== void 0) {
-            offset = aux.writeUInt8('F'.charCodeAt(0), offset);
-            offset = aux.writeUInt32LE(freq, offset);
-        }
-        if (networkId !== void 0) {
-            offset = aux.writeUInt8('N'.charCodeAt(0), offset);
-            offset = aux.writeUInt8(networkId, offset);
-        }
-        if (powerLevel !== void 0) {
-            offset = aux.writeUInt8('P'.charCodeAt(0), offset);
-            offset = aux.writeUInt8(powerLevel, offset);
-        }
-        if (offset !== 0) {
-            const configure = new Buffer(offset);
-            aux.copy(configure, 0, 0, offset);
-            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured);
-        }
-        return Observable.empty<void>();
-    }
-
-    get data() {
-        return this.below
-            .data
-            .filter(p => p[0] === Constants.Rsp_ReceivePacket)
-            .map(p => {
-                const msg = new Buffer(p.length - 2);
-                p.copy(msg, 0, 2, p.length);
-                return { data: msg, addr: p[1] };
-            });
-    }
-
-    send({ data, addr }: { addr: number, data: Buffer }) {
-        return new Observable<void>(observer => {
-            this._sendQueue.next({
-                addr,
-                data,
-                resolve: () => observer.complete(),
-                reject: err => observer.error(err),
-            });
-        });
     }
 }
 

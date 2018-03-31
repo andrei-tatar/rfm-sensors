@@ -12,6 +12,9 @@ export class Telnet implements MessageLayer<Buffer> {
     private reconnectTimeout: NodeJS.Timer;
     private _connected = new BehaviorSubject(false);
 
+    readonly data = this._data.asObservable();
+    readonly connected = this._connected.asObservable().distinctUntilChanged();
+
     constructor(
         private logger: Logger,
         private host: string,
@@ -19,14 +22,6 @@ export class Telnet implements MessageLayer<Buffer> {
         private reconnectInterval: number = 5000,
     ) {
         this._data = new Subject<Buffer>();
-    }
-
-    get data() {
-        return this._data.asObservable();
-    }
-
-    get connected() {
-        return this._connected.asObservable().distinctUntilChanged();
     }
 
     open() {

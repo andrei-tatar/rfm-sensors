@@ -8,6 +8,8 @@ export class SerialLayer implements MessageLayer<Buffer> {
     private serial: SerialPort;
     private _data = new Subject<Buffer>();
 
+    readonly data = this._data.asObservable();
+
     constructor(port: string) {
         this.serial = new SerialPort(port, {
             baudRate: 230400,
@@ -40,10 +42,6 @@ export class SerialLayer implements MessageLayer<Buffer> {
                 }
             });
         });
-    }
-
-    get data() {
-        return this._data.asObservable();
     }
 
     send(data: Buffer) {
