@@ -34,6 +34,7 @@
 #include "SysTick.h"
 #include "UART0.h"
 #include "PTD.h"
+#include "PTC.h"
 /* Including shared modules, which are used for whole project */
 #include "PE_Types.h"
 #include "PE_Error.h"

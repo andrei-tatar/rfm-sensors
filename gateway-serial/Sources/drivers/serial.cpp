@@ -116,8 +116,16 @@ static void InterruptRx() {
 	static RxStatus status = RxStatus::Idle;
 	static uint8_t offset;
 	static uint16_t chksum, rxChksum;
+	static uint32_t last;
+	
 	uint8_t data = UART0_PDD_GetChar8(UART0_BASE_PTR);
 
+	uint32_t now = millis();
+	if (now - last > 300) {
+		status = RxStatus::Idle;
+	}
+	last = now;
+	
 	switch (status) {
 	case RxStatus::Idle:
 		if (data == FRAME_HEADER_1)

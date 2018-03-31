@@ -38,6 +38,7 @@
 #include "SysTick.h"
 #include "UART0.h"
 #include "PTD.h"
+#include "PTC.h"
 
 #ifdef __cplusplus
 extern "C" {

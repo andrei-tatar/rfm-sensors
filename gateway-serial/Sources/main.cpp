@@ -6,9 +6,14 @@ bool inited = false;
 #define SEND_RETRIES 	10
 #define RETRY_INTERVAL 	50
 
+#define LED_RX		1 << 2
+#define LED_TX		1 << 3
+
 uint32_t lastSendTime;
 uint8_t sendBuffer[RF69_MAX_DATA_LEN], sendSize, sendRetries;
 uint8_t sendTo;
+
+uint32_t rxLedOn, txLedOn;
 
 #define MIN_ADDR	2
 #define MAX_ADDR	255
@@ -88,12 +93,14 @@ void sendRadioNow() {
 	radio.send(sendTo, sendBuffer, sendSize);
 	debugHex("TX", to, sendBuffer, sendSize);
 	lastSendTime = millis();
+	txLedOn = lastSendTime + 150;
+	PTC_BASE_PTR ->PSOR = LED_TX;
 }
 
 uint8_t sendRadio(uint8_t to, const uint8_t *data, uint8_t size) {
 	if (sendRetries)
 		return FRAME_ERR_BUSY;
-	
+
 	sendTo = to;
 	sendSize = size + 5;
 	sendBuffer[0] = MsgType::Data;
@@ -160,6 +167,10 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 void onRadioPacketReceived(RfmPacket &packet) {
 	if (packet.from < MIN_ADDR || packet.from > MAX_ADDR)
 		return;
+	
+	rxLedOn = millis() + 150;
+	PTC_BASE_PTR ->PSOR = LED_RX;
+	
 	SensorState& sensor = sensors[packet.from - MIN_ADDR];
 	auto data = packet.data;
 	auto size = packet.size;
@@ -244,6 +255,16 @@ void loop() {
 		} else {
 			sendRadioNow();
 		}
+	}
+
+	uint32_t now = millis();
+	if (txLedOn && now > txLedOn) {
+		PTC_BASE_PTR ->PCOR = LED_TX;
+		txLedOn = 0;
+	}
+	if (rxLedOn && now > rxLedOn) {
+		PTC_BASE_PTR ->PCOR = LED_RX;
+		rxLedOn = 0;
 	}
 }
 
