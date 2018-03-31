@@ -8,7 +8,6 @@ module.exports = function (RED) {
 
     function DimmerNode(config) {
         RED.nodes.createNode(this, config);
-        const node = this;
 
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
@@ -38,7 +37,7 @@ module.exports = function (RED) {
                 try {
                     await syncState().toPromise();
                 } catch (err) {
-                    node.error(`while sync: ${err.message}`);
+                    this.error(`while sync: ${err.message}`);
                 }
             });
 
@@ -54,7 +53,7 @@ module.exports = function (RED) {
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
-                node.status(isConnected
+                this.status(isConnected
                     ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
                     : { fill: 'red', shape: 'ring', text: 'not connected' });
             });
@@ -66,7 +65,7 @@ module.exports = function (RED) {
                 try {
                     await syncState().toPromise();
                 } catch (err) {
-                    node.error(`while sync: ${err.message}`);
+                    this.error(`while sync: ${err.message}`);
                 }
             });
 
@@ -77,27 +76,27 @@ module.exports = function (RED) {
         dimmerBrightness
             .takeUntil(stop)
             .subscribe(brightness => {
-                node.send({
+                this.send({
                     payload: brightness,
                     topic: config.topic,
                 });
             });
 
-        node.on('input', msg => {
+        this.on('input', msg => {
             if (msg.type === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
                 progress.throttleTime(1000).subscribe(p => {
-                    node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
+                    this.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
                 nodeLayer.upload(hex, progress)
                     .toPromise()
                     .then(() => {
-                        node.status({ fill: 'green', shape: 'dot', text: `upload done!` });
+                        this.status({ fill: 'green', shape: 'dot', text: `upload done!` });
                         return Observable.timer(1000).toPromise();
                     })
-                    .catch(err => node.error(`while uploading hex: ${err.message}`))
+                    .catch(err => this.error(`while uploading hex: ${err.message}`))
                     .then(() => {
                         uploading = false;
                         updateStatus.next();
@@ -113,7 +112,7 @@ module.exports = function (RED) {
                     nodeLayer
                         .send(Buffer.from([4, ledBrightness]))
                         .toPromise()
-                        .catch(err => node.error(`while setting led bright: ${err.message}`));
+                        .catch(err => this.error(`while setting led bright: ${err.message}`));
                 } else {
                     // set bright
                     nodeLayer
@@ -121,17 +120,17 @@ module.exports = function (RED) {
                         .toPromise()
                         .then(() => {
                             // fwd to output when succesful
-                            node.send({
+                            this.send({
                                 payload: value,
                                 topic: config.topic,
                             });
                         })
-                        .catch(err => node.error(`while setting bright: ${err.message}`));
+                        .catch(err => this.error(`while setting bright: ${err.message}`));
                 }
             }
         });
 
-        node.on('close', () => {
+        this.on('close', () => {
             stop.next();
             stop.complete();
         });

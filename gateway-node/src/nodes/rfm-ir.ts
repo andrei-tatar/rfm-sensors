@@ -12,10 +12,8 @@ module.exports = function (RED) {
         const decoder = new Decoder();
 
         RED.nodes.createNode(this, config);
-        const node = this;
-
-        const baseLayer = getBaseLayer(config.port, RED.log);
-        const pckg = new PackageLayer(baseLayer);
+        const base = getBaseLayer(config.port, RED.log);
+        const pckg = new PackageLayer(base);
         const state = pckg.data
             .map(msg => {
                 if (msg[0] === 1) {
@@ -29,31 +27,33 @@ module.exports = function (RED) {
             })
             .filter(msg => !!msg)
             .do(s => {
-                node.send({ payload: s });
+                this.send({ payload: s });
             })
             .timestamp();
 
-        node.on('input', msg => {
+        this.on('input', msg => {
             if (typeof msg.payload !== 'string') { return; }
 
             const pulses = decoder.encode(msg.payload);
             if (!pulses) { return; }
 
             const buffer = Buffer.from([1, ...pulses.map(p => Math.round(p / 50))]);
-            pckg.send(buffer).catch(err => node.error(`while sending code: ${err.message}`));
+            pckg.send(buffer).catch(err => this.error(`while sending code: ${err.message}`));
         });
 
         const subscription =
             Observable
-                .combineLatest(baseLayer.connected, state.startWith(null), Observable.interval(30000).startWith(0))
+                .combineLatest(base.connected, state.startWith(null), Observable.interval(30000).startWith(0))
                 .subscribe(([connected, st]) => {
                     const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
-                    node.status(connected
+                    this.status(connected
                         ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
                         : { fill: 'red', shape: 'ring', text: 'not connected' });
                 });
 
-        node.on('close', () => subscription.unsubscribe());
+        this.on('close', () => subscription.unsubscribe());
+
+        base.connect();
     }
 
     RED.nodes.registerType('rfm-ir', IrNode);

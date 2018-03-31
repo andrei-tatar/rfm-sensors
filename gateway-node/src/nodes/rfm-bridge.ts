@@ -12,13 +12,12 @@ import '../vendor';
 module.exports = function (RED) {
     function BridgeNode(config) {
         RED.nodes.createNode(this, config);
-        const node = this;
 
         const base = getBaseLayer(config.port, RED.log);
         const packageLayer = new PackageLayer(base);
         const radioLayer = new RadioLayer(packageLayer);
 
-        node.connected = base.connected
+        this.connected = base.connected
             .concatMap(isConnected => {
                 if (isConnected) {
                     return radioLayer
@@ -33,17 +32,19 @@ module.exports = function (RED) {
                 return Observable.of(isConnected);
             })
             .catch(err => {
-                node.error(`while initializing communication ${err.message}`);
+                this.error(`while initializing communication ${err.message}`);
                 return Observable.empty();
             })
             .share();
 
-        node.create = (address: number) => new RadioNode(radioLayer, address);
+        this.create = (address: number) => new RadioNode(radioLayer, address);
 
-        node.on('close', () => {
+        this.on('close', () => {
             base.close();
-            node.connected.complete();
+            this.connected.complete();
         });
+
+        base.connect();
     }
 
     RED.nodes.registerType('rfm-bridge', BridgeNode);

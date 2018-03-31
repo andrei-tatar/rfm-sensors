@@ -7,7 +7,6 @@ module.exports = function (RED) {
 
     function InputNode(config) {
         RED.nodes.createNode(this, config);
-        const node = this;
 
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
@@ -55,7 +54,7 @@ module.exports = function (RED) {
                 return state;
             })
             .do(state => {
-                node.send({ payload: state });
+                this.send({ payload: state });
             })
             .timestamp();
 
@@ -64,12 +63,12 @@ module.exports = function (RED) {
                 .combineLatest(connected, stateObservable.startWith(null), Observable.interval(30000).startWith(0))
                 .subscribe(([isConnected, state]) => {
                     const lastMessage = state ? `(${moment(state.timestamp).fromNow()})` : '';
-                    node.status(isConnected
+                    this.status(isConnected
                         ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
                         : { fill: 'red', shape: 'ring', text: 'not connected' });
                 });
 
-        node.on('close', () => subscription.unsubscribe());
+        this.on('close', () => subscription.unsubscribe());
     }
 
     RED.nodes.registerType('rfm-input', InputNode);
