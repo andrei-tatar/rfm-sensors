@@ -1,10 +1,10 @@
-import { Observable } from 'rxjs/Observable';
 import { RadioNode } from '../communication/node';
 import { SerialLayer } from '../communication/serial';
 import { PackageLayer } from './../communication/package';
 import { RadioLayer } from './../communication/radio';
 import { getBaseLayer } from './../util';
 
+import { Observable } from 'rxjs/Observable';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 
 import '../vendor';

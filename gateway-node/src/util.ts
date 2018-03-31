@@ -16,5 +16,3 @@ export function getBaseLayer(address: string, logger: Logger) {
             throw new Error(`protocol not supported: ${address}`);
     }
 }
-
-getBaseLayer('telnet://test', console);
