@@ -13,7 +13,16 @@ export class Telnet implements ConnectableLayer<Buffer> {
     private _connected = new BehaviorSubject(false);
 
     readonly data = this._data.asObservable();
-    readonly connected = this._connected.asObservable().distinctUntilChanged();
+    readonly connected = this._connected
+        .switchMap(c => {
+            if (c) {
+                return Observable.timer(0, 3000)
+                    .switchMap(s => this.sendRaw(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))) // heartbeat
+                    .map(() => c);
+            }
+            return Observable.of(c);
+        })
+        .distinctUntilChanged();
 
     constructor(
         private logger: Logger,
@@ -69,7 +78,11 @@ export class Telnet implements ConnectableLayer<Buffer> {
             .first()
             .concatMap<boolean, void>(c => {
                 if (!c) { throw new Error('telnet: not connected'); }
-                return new Promise(resolve => this.socket.write(data, resolve));
+                return this.sendRaw(data);
             });
+    }
+
+    private sendRaw(data: Buffer) {
+        return new Promise<void>(resolve => this.socket.write(data, resolve));
     }
 }
