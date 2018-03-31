@@ -28,6 +28,7 @@
     "nodes": {
       "rfm-bridge": "dist/nodes/rfm-bridge.js",
       "rfm-input": "dist/nodes/rfm-input.js",
+      "rfm-ir": "dist/nodes/rfm-ir.js",
       "rfm-dimmer": "dist/nodes/rfm-dimmer.js",
       "rfm-raw": "dist/nodes/rfm-raw.js"
     }

@@ -1,7 +1,9 @@
+import { Observable } from 'rxjs/Observable';
 import { RadioNode } from '../communication/node';
 import { SerialLayer } from '../communication/serial';
 import { PackageLayer } from './../communication/package';
 import { RadioLayer } from './../communication/radio';
+import { getBaseLayer } from './../util';
 
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 
@@ -12,27 +14,34 @@ module.exports = function (RED) {
         RED.nodes.createNode(this, config);
         const node = this;
 
-        const serial = new SerialLayer(config.port);
-        const packageLayer = new PackageLayer(serial);
+        const base = getBaseLayer(config.port, RED.log);
+        const packageLayer = new PackageLayer(base);
         const radioLayer = new RadioLayer(packageLayer);
 
-        node.connected = new ReplaySubject<boolean>(1);
-
-        serial
-            .open()
-            .then(() => radioLayer
-                .init({
-                    key: Buffer.from(config.key, 'hex'),
-                    powerLevel: 31
-                })
-                .toPromise())
-            .then(() => node.connected.next(true))
-            .catch(err => node.error(`while initializing communication ${err.message}`));
+        node.connected = base.connected
+            .concatMap(isConnected => {
+                if (isConnected) {
+                    return radioLayer
+                        .init({
+                            key: Buffer.from(config.key, 'hex'),
+                            powerLevel: 31
+                        })
+                        .map(() => isConnected)
+                        .concat(Observable.of(isConnected))
+                        .distinctUntilChanged();
+                }
+                return Observable.of(isConnected);
+            })
+            .catch(err => {
+                node.error(`while initializing communication ${err.message}`);
+                return Observable.empty();
+            })
+            .share();
 
         node.create = (address: number) => new RadioNode(radioLayer, address);
 
         node.on('close', () => {
-            serial.close().catch(err => { });
+            base.close();
             node.connected.complete();
         });
     }

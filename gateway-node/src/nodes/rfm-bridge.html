@@ -3,8 +3,8 @@
         category: 'config',
         defaults: {
             name: { value: 'Bridge' },
-            port: { value: 'COM7', required: true },
-            key: { value: '', required: true, validate: RED.validators.regex(/[a-f0-9]{32}/) },
+            port: { value: 'serial://COM7', required: true },
+            key: { value: '', validate: RED.validators.regex(/(?:[a-f0-9]{32})?/) },
         },
         label: function () { return this.name || 'Tab'; }
     });

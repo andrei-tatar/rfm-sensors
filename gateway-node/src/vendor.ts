@@ -13,6 +13,7 @@ import 'rxjs/add/observable/timer';
 import 'rxjs/add/operator/catch';
 import 'rxjs/add/operator/concat';
 import 'rxjs/add/operator/concatMap';
+import 'rxjs/add/operator/concatMap';
 import 'rxjs/add/operator/delay';
 import 'rxjs/add/operator/delayWhen';
 import 'rxjs/add/operator/dematerialize';

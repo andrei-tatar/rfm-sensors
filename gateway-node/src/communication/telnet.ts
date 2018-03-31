@@ -2,11 +2,11 @@ import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 
-import { MessageLayer } from './message';
+import { ConnectableLayer } from './message';
 
 import * as net from 'net';
 
-export class Telnet implements MessageLayer<Buffer> {
+export class Telnet implements ConnectableLayer<Buffer> {
     private readonly _data: Subject<Buffer>;
     private socket: net.Socket;
     private reconnectTimeout: NodeJS.Timer;
@@ -24,7 +24,7 @@ export class Telnet implements MessageLayer<Buffer> {
         this._data = new Subject<Buffer>();
     }
 
-    open() {
+    connect() {
         if (this.socket) {
             this.socket.destroy();
             this.socket = null;
@@ -35,12 +35,12 @@ export class Telnet implements MessageLayer<Buffer> {
         this.socket.once('disconnect', () => {
             this._connected.next(false);
             this.logger.warn('telnet: disconnected from server');
-            this.reconnectTimeout = setTimeout(() => this.open(), this.reconnectInterval);
+            this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
         });
         this.socket.once('error', err => {
             this._connected.next(false);
             this.logger.warn(`telnet: error: ${err.message}`);
-            this.reconnectTimeout = setTimeout(() => this.open(), this.reconnectInterval);
+            this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
         });
 
         this.logger.debug('telnet: connecting');
