@@ -7,7 +7,7 @@ import { ConnectableLayer } from './message';
 import * as net from 'net';
 
 export class Telnet implements ConnectableLayer<Buffer> {
-    private readonly _data: Subject<Buffer>;
+    private readonly _data = new Subject<Buffer>();
     private socket: net.Socket;
     private reconnectTimeout: NodeJS.Timer;
     private _connected = new BehaviorSubject(false);
@@ -21,7 +21,6 @@ export class Telnet implements ConnectableLayer<Buffer> {
         private port: number = 23,
         private reconnectInterval: number = 5000,
     ) {
-        this._data = new Subject<Buffer>();
     }
 
     connect() {
