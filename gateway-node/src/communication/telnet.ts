@@ -14,15 +14,23 @@ export class Telnet implements ConnectableLayer<Buffer> {
 
     readonly data = this._data.asObservable();
     readonly connected = this._connected
+        .distinctUntilChanged()
         .switchMap(c => {
+            const fwd = Observable.of(c);
             if (c) {
-                return Observable.timer(0, 3000)
+                return Observable.timer(0, 5000)
                     .switchMap(s => this.sendRaw(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))) // heartbeat
-                    .map(() => c);
+                    .map(() => c)
+                    .concat(fwd)
+                    .catch(err => {
+                        this.logger.warn(`could not send heartbeat ${err.message}`);
+                        return fwd;
+                    });
             }
-            return Observable.of(c);
+            return fwd;
         })
-        .distinctUntilChanged();
+        .distinctUntilChanged()
+        .shareReplay(1);
 
     constructor(
         private logger: Logger,

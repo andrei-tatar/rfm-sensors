@@ -1,9 +1,10 @@
 import { URL } from 'url';
 
+import { ConnectableLayer } from './communication/message';
 import { SerialLayer } from './communication/serial';
 import { Telnet } from './communication/telnet';
 
-export function getBaseLayer(address: string, logger: Logger) {
+export function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer> {
     const url = new URL(address);
     switch (url.protocol) {
         case 'serial:':
