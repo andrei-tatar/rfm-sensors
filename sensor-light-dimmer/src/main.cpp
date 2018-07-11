@@ -33,10 +33,10 @@ void setLedBrightness(uint8_t brightness);
 
 inline void updateLed()
 {
-    if (brightness && ledBrightness)
-        PORTD |= 1 << PIN_LED;
-    else
+    if (brightness)
         PORTD &= ~(1 << PIN_LED);
+    else
+        PORTD |= 1 << PIN_LED;
 }
 
 void sendState()
@@ -170,18 +170,18 @@ void handleRamp(uint32_t now)
     }
 }
 
-void setLedBrightness(uint8_t brightness)
+void setLedBrightness(uint8_t newLedBrightness)
 {
-    if (brightness == ledBrightness)
+    if (newLedBrightness == ledBrightness)
         return;
 
-    ledBrightness = brightness;
+    ledBrightness = newLedBrightness;
 
-    OCR2A = brightness;
-    if (brightness == 255 || brightness == 0)
+    OCR2A = newLedBrightness;
+    if (newLedBrightness == 255 || newLedBrightness == 0)
     {
         TCCR2B = 0;
-        if (brightness)
+        if (brightness && newLedBrightness)
             DDRD |= 1 << PIN_LED;
         else
             DDRD &= ~(1 << PIN_LED);
