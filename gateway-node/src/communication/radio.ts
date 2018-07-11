@@ -17,6 +17,8 @@ class Constants {
     static readonly Rsp_PacketSent = 0x93;
     static readonly Rsp_ReceivePacket = 0x94;
 
+    static readonly Rsp_Init = 0x95;
+
     static readonly Err_InvalidSize = 0x71;
     static readonly Err_Busy = 0x72;
     static readonly Err_Addr = 0x73;
@@ -26,9 +28,22 @@ class Constants {
 
 export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> {
     private _sendQueue = new Subject<SendMessage>();
+    private _config: RadioConfig;
 
     readonly data = this.below
         .data
+        .concatMap(p => {
+            if (p[0] === Constants.Rsp_Init && this._config) {
+                this.logger.warn('serial bridge reset; init again');
+                return this.init(this._config)
+                    .catch(err => {
+                        this.logger.warn(`radio.reset-init: error: ${err.message}`);
+                        return Observable.empty<Buffer>();
+                    })
+                    .switchMap(() => Observable.empty<Buffer>());
+            }
+            return Observable.of(p);
+        })
         .filter(p => p[0] === Constants.Rsp_ReceivePacket)
         .map(p => {
             const msg = new Buffer(p.length - 2);
@@ -39,6 +54,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
 
     constructor(
         private below: MessageLayer<Buffer>,
+        private logger: Logger,
     ) {
         this._sendQueue
             .concatMap(msg =>
@@ -53,6 +69,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
     }
 
     init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
+        this._config = { key, freq, networkId, powerLevel };
         const aux = new Buffer(100);
         let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
         if (key !== void 0) {

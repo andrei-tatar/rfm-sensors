@@ -30,6 +30,7 @@ static uint8_t radioHead = 0;
 #define FRAME_SENDPACKET            0x92
 #define FRAME_PACKETSENT            0x93
 #define FRAME_RECEIVEPACKET         0x94
+#define FRAME_INIT                  0x95
 
 #define FRAME_ERR_INVALID_SIZE      0x71
 #define FRAME_ERR_BUSY				0x72
@@ -69,6 +70,7 @@ void setup() {
 
 	inited = radio.initialize(RF69_433MHZ, 1, 1, true);
 	debug("Radio inited: %d\r\n", inited);
+	serialSendFrame(FRAME_INIT, 0, NULL, 0);
 }
 
 void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,

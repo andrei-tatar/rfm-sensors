@@ -15,7 +15,7 @@ module.exports = function (RED) {
 
         const base = getBaseLayer(config.port, RED.log);
         const packageLayer = new PackageLayer(base);
-        const radioLayer = new RadioLayer(packageLayer);
+        const radioLayer = new RadioLayer(packageLayer, RED.log);
 
         this.connected = base.connected
             .concatMap(isConnected => {
