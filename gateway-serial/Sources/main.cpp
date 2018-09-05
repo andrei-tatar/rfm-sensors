@@ -3,8 +3,8 @@
 RFM69 radio(spi_Transfer, millis);
 bool inited = false;
 
-#define SEND_RETRIES 	10
-#define RETRY_INTERVAL 	50
+#define SEND_RETRIES 	5
+#define RETRY_INTERVAL 	200
 
 #define LED_RX		1 << 2
 #define LED_TX		1 << 3
@@ -155,6 +155,11 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 				radio.setPowerLevel(*data++);
 				size--;
 				break;
+			case 'R':
+				srand(readUint16_t(data));
+				data += 2;
+				size -= 2;
+				break;
 			default:
 				size = 0;
 				break;
@@ -276,7 +281,7 @@ PE_ISR(portDInterrupt) {
 		if (!inited)
 			return;
 		if (radioCount == RADIO_QUEUE_SIZE) {
-			//TODO: we have to many packets in the queue... (store some error for stats)
+			//TODO: we have too many packets in the queue... (store some error for stats)
 			return;
 		}
 		RfmPacket& packet = radioQueue[radioTail];

@@ -10,6 +10,12 @@ uint32_t readNonce(const uint8_t *data)
     return nonce;
 }
 
+uint16_t readUint16_t(const uint8_t *data) {
+	uint16_t d = *data++;
+	d |= (uint16_t)*data++ << 8;
+	return d;
+}
+
 void writeNonce(uint8_t *data, uint32_t nonce)
 {
     *data++ = nonce;

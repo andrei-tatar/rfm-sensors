@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 uint32_t readNonce(const uint8_t *data);
+uint16_t readUint16_t(const uint8_t *data);
 void writeNonce(uint8_t *data, uint32_t nonce);
 uint32_t createNonce();
 
