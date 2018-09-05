@@ -35,13 +35,12 @@ module.exports = function (RED) {
                 this.error(`while initializing communication ${err.message}`);
                 return Observable.empty();
             })
-            .share();
+            .shareReplay(1);
 
         this.create = (address: number) => new RadioNode(radioLayer, address);
 
         this.on('close', () => {
             base.close();
-            this.connected.complete();
         });
 
         base.connect();

@@ -48,6 +48,8 @@ export class SerialLayer implements ConnectableLayer<Buffer> {
                 this._connected.error(err);
             }
         });
+        this._data.complete();
+        this._connected.complete();
     }
 
     send(data: Buffer) {

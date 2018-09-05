@@ -67,7 +67,6 @@ export class Telnet implements ConnectableLayer<Buffer> {
     }
 
     close() {
-        this._connected.next(false);
         this._connected.complete();
         this._data.complete();
         clearTimeout(this.reconnectTimeout);
