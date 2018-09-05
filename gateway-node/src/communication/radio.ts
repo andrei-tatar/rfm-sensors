@@ -76,6 +76,9 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
             offset = aux.writeUInt8('K'.charCodeAt(0), offset);
             offset += key.copy(aux, offset);
+
+            offset = aux.writeUInt8('R'.charCodeAt(0), offset);
+            offset += aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
         }
         if (freq !== void 0) {
             offset = aux.writeUInt8('F'.charCodeAt(0), offset);
