@@ -1,4 +1,6 @@
-import { Observable } from 'rxjs/Observable';
+import { defer } from 'rxjs';
+import { filter, map, scan, share } from 'rxjs/operators';
+
 import { MessageLayer } from './message';
 
 const FrameHeader1 = 0xDE, FrameHeader2 = 0x5B;
@@ -19,8 +21,8 @@ interface State {
 
 export class PackageLayer implements MessageLayer<Buffer> {
     readonly data = this.below.data
-        .scan(
-            (state, value) => {
+        .pipe(
+            scan((state: State, value: Buffer) => {
                 if (state.received) {
                     state.received = null;
                 }
@@ -34,10 +36,11 @@ export class PackageLayer implements MessageLayer<Buffer> {
                 size: 0,
                 last: 0,
                 received: null,
-            } as State)
-        .filter(v => v.received !== null)
-        .map(v => v.received)
-        .share();
+            } as State),
+            filter(v => v.received !== null),
+            map(v => v.received),
+            share()
+        );
 
     constructor(private below: MessageLayer<Buffer>) {
     }
@@ -103,7 +106,7 @@ export class PackageLayer implements MessageLayer<Buffer> {
     }
 
     send(data: Buffer) {
-        return Observable.defer(() => {
+        return defer(() => {
             const packet = new Buffer(data.length + 5);
             let offset = packet.writeUInt8(FrameHeader1, 0);
             offset = packet.writeUInt8(FrameHeader2, offset);

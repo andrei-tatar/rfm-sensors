@@ -1,8 +1,7 @@
-import { Observable } from 'rxjs/Observable';
-import * as SerialPort from 'serialport';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { distinctUntilChanged } from 'rxjs/operators';
 
-import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-import { Subject } from 'rxjs/Subject';
+import * as SerialPort from 'serialport';
 
 import { ConnectableLayer } from './message';
 
@@ -12,7 +11,7 @@ export class SerialLayer implements ConnectableLayer<Buffer> {
     private _connected = new BehaviorSubject(false);
 
     readonly data = this._data.asObservable();
-    readonly connected = this._connected.asObservable().distinctUntilChanged();
+    readonly connected = this._connected.pipe(distinctUntilChanged());
 
     constructor(
         private logger: Logger,

@@ -1,13 +1,10 @@
+import { concat, EMPTY, of } from 'rxjs';
+import { catchError, concatMap, distinctUntilChanged, map, shareReplay } from 'rxjs/operators';
+
 import { RadioNode } from '../communication/node';
-import { SerialLayer } from '../communication/serial';
 import { PackageLayer } from './../communication/package';
 import { RadioLayer } from './../communication/radio';
 import { getBaseLayer } from './../util';
-
-import { Observable } from 'rxjs/Observable';
-import { ReplaySubject } from 'rxjs/ReplaySubject';
-
-import '../vendor';
 
 module.exports = function (RED) {
     function BridgeNode(config) {
@@ -18,24 +15,26 @@ module.exports = function (RED) {
         const radioLayer = new RadioLayer(packageLayer, RED.log);
 
         this.connected = base.connected
-            .concatMap(isConnected => {
-                if (isConnected) {
-                    return radioLayer
-                        .init({
-                            key: Buffer.from(config.key, 'hex'),
-                            powerLevel: 31
-                        })
-                        .map(() => isConnected)
-                        .concat(Observable.of(isConnected))
-                        .distinctUntilChanged();
-                }
-                return Observable.of(isConnected);
-            })
-            .catch(err => {
-                this.error(`while initializing communication ${err.message}`);
-                return Observable.empty();
-            })
-            .shareReplay(1);
+            .pipe(
+                concatMap(isConnected => {
+                    if (isConnected) {
+                        return concat(radioLayer
+                            .init({
+                                key: Buffer.from(config.key, 'hex'),
+                                powerLevel: 31
+                            }).pipe(
+                                map(() => isConnected)
+                            ), of(isConnected))
+                            .pipe(distinctUntilChanged());
+                    }
+                    return of(isConnected);
+                }),
+                catchError(err => {
+                    this.error(`while initializing communication ${err.message}`);
+                    return EMPTY;
+                }),
+                shareReplay(1)
+            );
 
         this.create = (address: number) => new RadioNode(radioLayer, address);
 

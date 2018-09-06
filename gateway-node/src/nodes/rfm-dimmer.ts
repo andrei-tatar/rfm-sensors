@@ -1,8 +1,11 @@
 import { RadioNode } from '../communication/node';
 
 import * as moment from 'moment';
-import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
+import { combineLatest, concat, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
+import {
+    catchError, delay, delayWhen, filter, map,
+    startWith, switchMap, takeUntil, tap, throttleTime, timestamp
+} from 'rxjs/operators';
 
 module.exports = function (RED) {
 
@@ -14,7 +17,7 @@ module.exports = function (RED) {
 
         const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
-        const periodicSync = Observable.interval(5 * 60000).startWith(0);
+        const periodicSync = interval(5 * 60000).pipe(startWith(0));
         const stop = new Subject();
 
         let ledBrightness = config.ledbrightness;
@@ -22,34 +25,34 @@ module.exports = function (RED) {
         if (config.manualdim) { mode |= 0x01; }
         if (!config.manual) { mode |= 0x02; }
 
-        const syncState = () => Observable.concat(
+        const syncState = () => concat(
             nodeLayer.send(Buffer.from([2])), // get status
             nodeLayer.send(Buffer.from([3, mode, config.maxbrightness])), // set mode
             nodeLayer.send(Buffer.from([4, ledBrightness])), // set led bright
         );
 
-        Observable
-            .combineLatest(connected, periodicSync)
-            .filter(([isConnected]) => isConnected)
-            .takeUntil(stop)
-            .delayWhen(i => Observable.of(Math.round(Math.random() * 50) * 200))
-            .subscribe(async ([isConnected, index]) => {
-                try {
-                    await syncState().toPromise();
-                } catch (err) {
+        combineLatest(connected, periodicSync)
+            .pipe(
+                filter(([isConnected]) => isConnected),
+                takeUntil(stop),
+                delayWhen(_ => of(Math.round(Math.random() * 50) * 200)),
+                switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
-                }
-            });
+                    return EMPTY;
+                })))
+            )
+            .subscribe();
 
         const updateStatus = new Subject();
         let uploading = false;
 
-        Observable
-            .combineLatest(connected,
-                nodeLayer.data.startWith(null).merge(updateStatus).timestamp(),
-                Observable.interval(30000).startWith(0))
-            .takeUntil(stop)
-            .filter(() => !uploading)
+        combineLatest(connected,
+            merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
+            interval(30000).pipe(startWith(0)))
+            .pipe(
+                takeUntil(stop),
+                filter(() => !uploading)
+            )
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
@@ -58,24 +61,23 @@ module.exports = function (RED) {
                     : { fill: 'red', shape: 'ring', text: 'not connected' });
             });
 
-        const syncRequest = nodeLayer.data
-            .filter(d => d.length === 1 && d[0] === 1)
-            .takeUntil(stop)
-            .subscribe(async () => {
-                try {
-                    await syncState().toPromise();
-                } catch (err) {
+        nodeLayer.data
+            .pipe(
+                filter(d => d.length === 1 && d[0] === 1),
+                takeUntil(stop),
+                switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
-                }
-            });
+                    return EMPTY;
+                })))
+            )
+            .subscribe();
 
-        const dimmerBrightness = nodeLayer.data
-            .filter(d => d.length === 2 && d[0] === 2)
-            .map(d => d[1]);
-
-        dimmerBrightness
-            .takeUntil(stop)
-            .subscribe(brightness => {
+        nodeLayer.data
+            .pipe(
+                filter(d => d.length === 2 && d[0] === 2),
+                map(d => d[1]),
+                takeUntil(stop)
+            ).subscribe(brightness => {
                 this.send({
                     payload: brightness,
                     topic: config.topic,
@@ -86,21 +88,21 @@ module.exports = function (RED) {
             if (msg.type === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
-                progress.throttleTime(1000).subscribe(p => {
+                progress.pipe(throttleTime(1000)).subscribe(p => {
                     this.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
                 nodeLayer.upload(hex, progress)
-                    .toPromise()
-                    .then(() => {
-                        this.status({ fill: 'green', shape: 'dot', text: `upload done!` });
-                        return Observable.timer(1000).toPromise();
-                    })
-                    .catch(err => this.error(`while uploading hex: ${err.message}`))
-                    .then(() => {
-                        uploading = false;
-                        updateStatus.next();
-                    });
+                    .pipe(
+                        tap(() => this.status({ fill: 'green', shape: 'dot', text: `upload done!` })),
+                        catchError(err => this.error(`while uploading hex: ${err.message}`)),
+                        delay(5000),
+                        map(() => {
+                            uploading = false;
+                            updateStatus.next();
+                        }),
+                        takeUntil(stop)
+                    ).subscribe();
             } else {
                 const value = Math.min(100, Math.max(0, parseInt(msg.payload, 10)));
                 if (!isFinite(value)) {
@@ -111,21 +113,24 @@ module.exports = function (RED) {
                     // set led bright
                     nodeLayer
                         .send(Buffer.from([4, ledBrightness]))
-                        .toPromise()
-                        .catch(err => this.error(`while setting led bright: ${err.message}`));
+                        .pipe(
+                            catchError(err => this.error(`while setting led bright: ${err.message}`)),
+                            takeUntil(stop)
+                        )
+                        .subscribe();
                 } else {
                     // set bright
                     nodeLayer
                         .send(Buffer.from([1, value]))
-                        .toPromise()
-                        .then(() => {
-                            // fwd to output when succesful
-                            this.send({
+                        .pipe(
+                            tap(_ => this.send({
                                 payload: value,
                                 topic: config.topic,
-                            });
-                        })
-                        .catch(err => this.error(`while setting bright: ${err.message}`));
+                            })),
+                            catchError(err => this.error(`while setting bright: ${err.message}`)),
+                            takeUntil(stop)
+                        )
+                        .subscribe();
                 }
             }
         });

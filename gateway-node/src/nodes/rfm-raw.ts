@@ -1,8 +1,11 @@
-import { RadioNode } from '../communication/node';
-
 import * as moment from 'moment';
-import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
+import { combineLatest, interval, merge, Observable, Subject } from 'rxjs';
+import {
+    catchError, delay, filter, startWith,
+    switchMap, takeUntil, throttleTime, timestamp
+} from 'rxjs/operators';
+
+import { RadioNode } from '../communication/node';
 
 module.exports = function (RED) {
 
@@ -15,18 +18,18 @@ module.exports = function (RED) {
 
         const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
-        const periodicSync = Observable.interval(5 * 60000).startWith(0);
         const stop = new Subject();
 
         const updateStatus = new Subject();
         let uploading = false;
 
-        Observable
-            .combineLatest(connected,
-                nodeLayer.data.startWith(null).merge(updateStatus).timestamp(),
-                Observable.interval(30000).startWith(0))
-            .takeUntil(stop)
-            .filter(() => !uploading)
+        combineLatest(connected,
+            merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
+            interval(30000).pipe(startWith(0)))
+            .pipe(
+                takeUntil(stop),
+                filter(() => !uploading)
+            )
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
@@ -35,8 +38,7 @@ module.exports = function (RED) {
                     : { fill: 'red', shape: 'ring', text: 'not connected' });
             });
 
-        nodeLayer.data
-            .takeUntil(stop)
+        nodeLayer.data.pipe(takeUntil(stop))
             .subscribe(data =>
                 node.send({
                     payload: data,
@@ -47,18 +49,17 @@ module.exports = function (RED) {
             if (msg.type === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
-                progress.throttleTime(1000).subscribe(p => {
+                progress.pipe(throttleTime(1000)).subscribe(p => {
                     node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
                 nodeLayer.upload(hex, progress)
-                    .toPromise()
-                    .then(() => {
-                        node.status({ fill: 'green', shape: 'dot', text: `upload done!` });
-                        return Observable.timer(1000).toPromise();
-                    })
-                    .catch(err => node.error(`while uploading hex: ${err.message}`))
-                    .then(() => {
+                    .pipe(
+                        switchMap(() => node.status({ fill: 'green', shape: 'dot', text: `upload done!` })),
+                        catchError(err => node.error(`while uploading hex: ${err.message}`)),
+                        delay(5000)
+                    )
+                    .subscribe(() => {
                         uploading = false;
                         updateStatus.next();
                     });

@@ -1,5 +1,9 @@
-import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
+import { EMPTY, merge, Observable, of, Subject } from 'rxjs';
+import {
+    catchError, concatMap, filter, first,
+    ignoreElements, map, share, tap, timeout
+} from 'rxjs/operators';
+
 import { MessageLayer } from './message';
 
 interface SendMessage {
@@ -32,38 +36,39 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
 
     readonly data = this.below
         .data
-        .concatMap(p => {
-            if (p[0] === Constants.Rsp_Init && this._config) {
-                this.logger.warn('serial bridge reset; init again');
-                return this.init(this._config)
-                    .catch(err => {
-                        this.logger.warn(`radio.reset-init: error: ${err.message}`);
-                        return Observable.empty<Buffer>();
-                    })
-                    .switchMap(() => Observable.empty<Buffer>());
-            }
-            return Observable.of(p);
-        })
-        .filter(p => p[0] === Constants.Rsp_ReceivePacket)
-        .map(p => {
-            const msg = new Buffer(p.length - 2);
-            p.copy(msg, 0, 2, p.length);
-            return { data: msg, addr: p[1] };
-        })
-        .share();
+        .pipe(
+            concatMap(p => {
+                if (p[0] === Constants.Rsp_Init && this._config) {
+                    this.logger.warn('serial bridge reset; init again');
+                    return this.reinit();
+                }
+                return of(p);
+            }),
+            filter(p => p[0] === Constants.Rsp_ReceivePacket),
+            map(p => {
+                const msg = new Buffer(p.length - 2);
+                p.copy(msg, 0, 2, p.length);
+                return { data: msg, addr: p[1] };
+            }),
+            share()
+        );
 
     constructor(
         private below: MessageLayer<Buffer>,
         private logger: Logger,
     ) {
         this._sendQueue
-            .concatMap(msg =>
-                this.sendInternal(msg)
-                    .do(() => { }, () => { }, () => msg.resolve())
-                    .catch(err => {
-                        msg.reject(err);
-                        return Observable.empty();
-                    })
+            .pipe(
+                concatMap(msg =>
+                    this.sendInternal(msg)
+                        .pipe(
+                            tap(() => { }, () => { }, () => msg.resolve()),
+                            catchError(err => {
+                                msg.reject(err);
+                                return EMPTY;
+                            })
+                        )
+                )
             )
             .subscribe();
     }
@@ -98,7 +103,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             this.logger.info('radio: sending configuration');
             return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured);
         }
-        return Observable.empty<void>();
+        return EMPTY;
     }
 
     send({ data, addr }: { addr: number, data: Buffer }) {
@@ -110,6 +115,17 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
                 reject: err => observer.error(err),
             });
         });
+    }
+
+    private reinit() {
+        return this.init(this._config)
+            .pipe(
+                ignoreElements(),
+                catchError(err => {
+                    this.logger.warn(`radio.reset-init: error: ${err.message}`);
+                    return EMPTY;
+                }),
+            );
     }
 
     private sendInternal({ data, addr }: SendMessage) {
@@ -133,18 +149,21 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             });
     }
 
-    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeout: number = 1000) {
-        return this.below.data
-            .filter(p => verifyReply(p))
-            .first()
-            .timeout(timeout)
-            .merge(this.below.send(packet))
-            .catch(err => {
-                if (err.name === 'TimeoutError') {
-                    throw new Error('timeout sending data');
-                }
-                throw err;
-            });
+    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeoutTime: number = 1000) {
+        const waitForReply$ = this.below.data.pipe(
+            filter(p => verifyReply(p)),
+            first(),
+            timeout(timeoutTime)
+        );
+        return merge(waitForReply$, this.below.send(packet))
+            .pipe(
+                catchError(err => {
+                    if (err.name === 'TimeoutError') {
+                        throw new Error('timeout sending data');
+                    }
+                    throw err;
+                })
+            );
     }
 }
 

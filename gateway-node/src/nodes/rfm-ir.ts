@@ -1,6 +1,6 @@
 import * as moment from 'moment';
-import { Observable } from 'rxjs/Observable';
-import { Subscription } from 'rxjs/Subscription';
+import { combineLatest, EMPTY, interval } from 'rxjs';
+import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operators';
 
 import { getBaseLayer } from '../util';
 import { PackageLayer } from './../communication/package';
@@ -14,8 +14,8 @@ module.exports = function (RED) {
         RED.nodes.createNode(this, config);
         const base = getBaseLayer(config.port, RED.log);
         const pckg = new PackageLayer(base);
-        const state = pckg.data
-            .map(msg => {
+        const state = pckg.data.pipe(
+            map(msg => {
                 if (msg[0] === 1) {
                     const pulses: number[] = [];
                     for (let i = 1; i < msg.length; i++) {
@@ -24,12 +24,13 @@ module.exports = function (RED) {
                     return decoder.decode(pulses);
                 }
                 return null;
-            })
-            .filter(msg => !!msg)
-            .do(s => {
+            }),
+            filter(msg => !!msg),
+            tap(s => {
                 this.send({ payload: s });
-            })
-            .timestamp();
+            }),
+            timestamp()
+        );
 
         this.on('input', msg => {
             if (typeof msg.payload !== 'string') { return; }
@@ -38,18 +39,24 @@ module.exports = function (RED) {
             if (!pulses) { return; }
 
             const buffer = Buffer.from([1, ...pulses.map(p => Math.round(p / 50))]);
-            pckg.send(buffer).catch(err => this.error(`while sending code: ${err.message}`));
+            pckg.send(buffer)
+                .pipe(
+                    catchError(err => {
+                        this.error(`while sending code: ${err.message}`);
+                        return EMPTY;
+                    })
+                ).subscribe();
         });
 
-        const subscription =
-            Observable
-                .combineLatest(base.connected, state.startWith(null), Observable.interval(30000).startWith(0))
-                .subscribe(([connected, st]) => {
-                    const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
-                    this.status(connected
-                        ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
-                        : { fill: 'red', shape: 'ring', text: 'not connected' });
-                });
+        const subscription = combineLatest(base.connected,
+            state.pipe(startWith(null)),
+            interval(30000).pipe(startWith(0))
+        ).subscribe(([connected, st]) => {
+            const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
+            this.status(connected
+                ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
+                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        });
 
         this.on('close', () => subscription.unsubscribe());
 
