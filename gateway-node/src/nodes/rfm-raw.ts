@@ -1,8 +1,8 @@
 import * as moment from 'moment';
-import { combineLatest, interval, merge, Observable, Subject } from 'rxjs';
+import { combineLatest, interval, merge, Observable, Subject, defer, concat, of } from 'rxjs';
 import {
     catchError, delay, filter, startWith,
-    switchMap, takeUntil, throttleTime, timestamp
+    switchMap, takeUntil, throttleTime, timestamp, finalize
 } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
@@ -53,22 +53,28 @@ module.exports = function (RED) {
                     node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
-                nodeLayer.upload(hex, progress)
-                    .pipe(
-                        switchMap(() => node.status({ fill: 'green', shape: 'dot', text: `upload done!` })),
-                        catchError(err => node.error(`while uploading hex: ${err.message}`)),
-                        delay(5000)
-                    )
-                    .subscribe(() => {
+                concat(
+                    nodeLayer.upload(hex, progress),
+                    defer(() => node.status({ fill: 'green', shape: 'dot', text: `upload done!` }))
+                ).pipe(
+                    catchError(err => {
+                        node.error(`while uploading hex: ${err.message}`);
+                        return of(null);
+                    }),
+                    delay(5000),
+                    finalize(() => {
                         uploading = false;
                         updateStatus.next();
-                    });
+                        progress.complete();
+                    }),
+                    takeUntil(stop),
+                ).subscribe();
             } else {
                 const data = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
-                nodeLayer
-                    .send(data)
-                    .toPromise()
-                    .catch(err => node.error(`while setting bright: ${err.message}`));
+                nodeLayer.send(data).pipe(
+                    catchError(err => node.error(`while setting bright: ${err.message}`)),
+                    takeUntil(stop),
+                ).subscribe();
             }
         });
 

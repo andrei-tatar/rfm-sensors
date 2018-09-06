@@ -1,10 +1,10 @@
 import { RadioNode } from '../communication/node';
 
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
+import { combineLatest, concat, EMPTY, interval, merge, Observable, of, Subject, defer } from 'rxjs';
 import {
     catchError, delay, delayWhen, filter, map,
-    startWith, switchMap, takeUntil, tap, throttleTime, timestamp
+    startWith, switchMap, takeUntil, tap, throttleTime, timestamp, finalize
 } from 'rxjs/operators';
 
 module.exports = function (RED) {
@@ -92,17 +92,21 @@ module.exports = function (RED) {
                     this.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
-                nodeLayer.upload(hex, progress)
-                    .pipe(
-                        tap(() => this.status({ fill: 'green', shape: 'dot', text: `upload done!` })),
-                        catchError(err => this.error(`while uploading hex: ${err.message}`)),
-                        delay(5000),
-                        map(() => {
-                            uploading = false;
-                            updateStatus.next();
-                        }),
-                        takeUntil(stop)
-                    ).subscribe();
+                concat(
+                    nodeLayer.upload(hex, progress),
+                    defer(() => this.status({ fill: 'green', shape: 'dot', text: `upload done!` }))
+                ).pipe(
+                    catchError(err => {
+                        this.error(`while uploading hex: ${err.message}`);
+                        return of(null);
+                    }),
+                    delay(5000),
+                    finalize(() => {
+                        uploading = false;
+                        updateStatus.next();
+                    }),
+                    takeUntil(stop)
+                ).subscribe();
             } else {
                 const value = Math.min(100, Math.max(0, parseInt(msg.payload, 10)));
                 if (!isFinite(value)) {
@@ -114,23 +118,28 @@ module.exports = function (RED) {
                     nodeLayer
                         .send(Buffer.from([4, ledBrightness]))
                         .pipe(
-                            catchError(err => this.error(`while setting led bright: ${err.message}`)),
+                            catchError(err => {
+                                this.error(`while setting led bright: ${err.message}`);
+                                return EMPTY;
+                            }),
                             takeUntil(stop)
                         )
                         .subscribe();
                 } else {
                     // set bright
-                    nodeLayer
-                        .send(Buffer.from([1, value]))
-                        .pipe(
-                            tap(_ => this.send({
-                                payload: value,
-                                topic: config.topic,
-                            })),
-                            catchError(err => this.error(`while setting bright: ${err.message}`)),
-                            takeUntil(stop)
-                        )
-                        .subscribe();
+                    concat(
+                        nodeLayer.send(Buffer.from([1, value])),
+                        defer(() => this.send({
+                            payload: value,
+                            topic: config.topic,
+                        }))
+                    ).pipe(
+                        catchError(err => {
+                            this.error(`while setting bright: ${err.message}`);
+                            return EMPTY;
+                        }),
+                        takeUntil(stop)
+                    ).subscribe();
                 }
             }
         });
