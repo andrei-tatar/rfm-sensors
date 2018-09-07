@@ -1,10 +1,10 @@
 import { RadioNode } from '../communication/node';
 
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval, merge, Observable, of, Subject, defer } from 'rxjs';
+import { combineLatest, concat, defer, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
 import {
-    catchError, delay, delayWhen, filter, map,
-    startWith, switchMap, takeUntil, tap, throttleTime, timestamp, finalize
+    catchError, delay, delayWhen, filter, finalize,
+    map, startWith, switchMap, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
 module.exports = function (RED) {
@@ -17,7 +17,7 @@ module.exports = function (RED) {
 
         const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
-        const periodicSync = interval(5 * 60000).pipe(startWith(0));
+        const periodicSync = interval(10 * 60000).pipe(startWith(0));
         const stop = new Subject();
 
         let ledBrightness = config.ledbrightness;
@@ -35,7 +35,7 @@ module.exports = function (RED) {
             .pipe(
                 filter(([isConnected]) => isConnected),
                 takeUntil(stop),
-                delayWhen(_ => of(Math.round(Math.random() * 50) * 200)),
+                delayWhen(_ => of(Math.round(Math.random() * 20) * 2000)),
                 switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
                     return EMPTY;
