@@ -149,7 +149,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             });
     }
 
-    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeoutTime: number = 1000) {
+    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeoutTime: number = 1200) {
         const waitForReply$ = this.below.data.pipe(
             filter(p => verifyReply(p)),
             first(),
