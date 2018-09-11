@@ -278,14 +278,19 @@ void loop() {
 PE_ISR(portDInterrupt) {
 	if (PORT_PDD_GetPinInterruptFlag(PORTD_BASE_PTR, 4) ) {
 		PORT_PDD_ClearPinInterruptFlag(PORTD_BASE_PTR, 4);
-		if (!inited)
+		if (!inited) 
 			return;
-		if (radioCount == RADIO_QUEUE_SIZE) {
-			//TODO: we have too many packets in the queue... (store some error for stats)
-			return;
-		}
+
 		RfmPacket& packet = radioQueue[radioTail];
-		if (radio.receive(packet) && packet.from >= MIN_ADDR && packet.from <= MAX_ADDR) {
+		while (radio.receive(packet)) {
+			if (packet.from < MIN_ADDR || packet.from > MAX_ADDR) {
+				continue;
+			}
+			if (radioCount == RADIO_QUEUE_SIZE) {
+				//TODO: we have too many packets in the queue... (store some error for stats)
+				return;
+			}
+
 			noInterrupts();
 			radioCount++;
 			if (++radioTail == RADIO_QUEUE_SIZE)
