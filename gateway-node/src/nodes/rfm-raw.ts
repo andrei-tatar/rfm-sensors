@@ -1,8 +1,8 @@
 import * as moment from 'moment';
-import { combineLatest, interval, merge, Observable, Subject, defer, concat, of } from 'rxjs';
+import { combineLatest, concat, defer, interval, merge, Observable, of, Subject } from 'rxjs';
 import {
-    catchError, delay, filter, startWith,
-    switchMap, takeUntil, throttleTime, timestamp, finalize
+    catchError, delay, filter, finalize,
+    startWith, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';

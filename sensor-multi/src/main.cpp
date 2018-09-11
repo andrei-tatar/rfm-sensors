@@ -1,3 +1,4 @@
+#define SEND_RETRIES 1
 #include <Arduino.h>
 #include <sensor.h>
 #include <Adafruit_BME280.h>
@@ -12,14 +13,12 @@ Sensor sensor;
 void inputStateChanged()
 {
     sensor.wake();
-    _delay_ms(100); //debounce
 }
 
 void setup()
 {
     sensor.init();
 
-    Serial.begin(115200);
     if (!bme.begin(0x76) || !max44009.initialize())
     {
         sensor.powerDown();
@@ -39,7 +38,6 @@ void setup()
 
     pinMode(PIN_INPUT, INPUT);
     attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, CHANGE);
-    Serial.begin(115200);
 }
 
 void loop()
@@ -67,12 +65,25 @@ void loop()
     uint8_t state = digitalRead(PIN_INPUT);
     msg[9] = state;
 
-    for (uint8_t i = 0; i < sizeof(msg); i++)
-        Serial.print(msg[i], HEX);
-    Serial.println();
-
     sensor.powerUp();
-    sensor.sendAndWait(msg, sizeof(msg));
+    auto sent = sensor.sendAndWait(msg, sizeof(msg));
     sensor.powerDown();
-    sensor.sleep(state ? 10 : 300);
+
+    static uint8_t fails = 0;
+    uint8_t sleepTime;
+    if (sent)
+    {
+        sleepTime = state ? 10 : 300;
+        fails = 0;
+    }
+    else if (fails < 10)
+    {
+        fails++;
+        sleepTime = 1;
+    }
+    else
+    {
+        sleepTime = 30;
+    }
+    sensor.sleep(sleepTime);
 }
