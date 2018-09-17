@@ -254,7 +254,7 @@ void loop() {
 		interrupts();
 	}
 
-	if (sendRetries && millis() >= lastSendTime + RETRY_INTERVAL) {
+	if (sendRetries && millis() - lastSendTime >= RETRY_INTERVAL) {
 		sendRetries--;
 		if (sendRetries == 0) {
 			sendRadioDone();

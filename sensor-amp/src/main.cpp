@@ -110,7 +110,7 @@ void setVolume(uint8_t vol)
     int16_t delta = (int16_t)vol - current;
     if (abs(delta) > 2)
     {
-        uint32_t nextSend = millis() + 50;
+        uint32_t lastSend = millis();
         sendRaw(delta > 0
                     ? IR_VOL_UP
                     : IR_VOL_DOWN);
@@ -118,9 +118,9 @@ void setVolume(uint8_t vol)
         {
             current = getVolume();
             uint32_t now = millis();
-            if (now >= nextSend)
+            if (now + 108 >= lastSend)
             {
-                nextSend = now + 108;
+                lastSend = now;
                 sendRepeat();
             }
         }

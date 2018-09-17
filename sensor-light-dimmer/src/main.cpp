@@ -143,10 +143,10 @@ static const uint8_t powerToTicks[100] PROGMEM = {
 
 void handleRamp(uint32_t now)
 {
-    static uint32_t nextChange;
-    if (now >= nextChange)
+    static uint32_t lastChange;
+    if (now + 15 >= lastChange)
     {
-        nextChange = now + 15;
+        lastChange = now;
 
         static uint8_t current = 0;
         if (current != brightness)
