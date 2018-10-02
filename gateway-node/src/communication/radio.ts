@@ -101,7 +101,8 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             const configure = new Buffer(offset);
             aux.copy(configure, 0, 0, offset);
             this.logger.info('radio: sending configuration');
-            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured);
+            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured)
+                .pipe(tap(_ => this.logger.info('radio: configuration sent!')));
         }
         return EMPTY;
     }

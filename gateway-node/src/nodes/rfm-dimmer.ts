@@ -1,9 +1,12 @@
 import { RadioNode } from '../communication/node';
 
 import * as moment from 'moment';
-import { combineLatest, concat, defer, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
 import {
-    catchError, delay, delayWhen, filter, finalize,
+    combineLatest, concat, defer, EMPTY, interval, merge,
+    NEVER, Observable, of, Subject, timer
+} from 'rxjs';
+import {
+    catchError, delay, filter, finalize,
     map, startWith, switchMap, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
@@ -33,9 +36,8 @@ module.exports = function (RED) {
 
         combineLatest(connected, periodicSync)
             .pipe(
-                filter(([isConnected]) => isConnected),
                 takeUntil(stop),
-                delayWhen(_ => of(Math.round(Math.random() * 20) * 2000)),
+                switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 20) * 2000) : NEVER),
                 switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
                     return EMPTY;
