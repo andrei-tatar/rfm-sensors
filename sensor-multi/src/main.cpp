@@ -37,7 +37,7 @@ void setup()
         Adafruit_BME280::standby_duration::STANDBY_MS_1000);
 
     pinMode(PIN_INPUT, INPUT);
-    attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, RISING);
 }
 
 void loop()
@@ -66,24 +66,7 @@ void loop()
     msg[9] = state;
 
     sensor.powerUp();
-    auto sent = sensor.sendAndWait(msg, sizeof(msg));
+    sensor.sendAndWait(msg, sizeof(msg));
     sensor.powerDown();
-
-    static uint8_t fails = 0;
-    uint8_t sleepTime;
-    if (sent)
-    {
-        sleepTime = state ? 10 : 300;
-        fails = 0;
-    }
-    else if (fails < 10)
-    {
-        fails++;
-        sleepTime = 1;
-    }
-    else
-    {
-        sleepTime = 30;
-    }
-    sensor.sleep(sleepTime);
+    sensor.sleep(10 * 60); // 10 min
 }
