@@ -9,10 +9,14 @@
 Adafruit_BME280 bme;
 MAX44009 max44009;
 Sensor sensor;
+volatile bool ignoreWake = false;
 
 void inputStateChanged()
 {
-    sensor.wake();
+    if (!ignoreWake)
+    {
+        sensor.wake();
+    }
 }
 
 void setup()
@@ -68,5 +72,10 @@ void loop()
     sensor.powerUp();
     sensor.sendAndWait(msg, sizeof(msg));
     sensor.powerDown();
+
+    ignoreWake = true;
+    sensor.sleep(3);
+    ignoreWake = false;
+
     sensor.sleep(10 * 60); // 10 min
 }
