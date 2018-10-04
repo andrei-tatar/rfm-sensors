@@ -1,4 +1,3 @@
-#define SEND_RETRIES 1
 #include <Arduino.h>
 #include <sensor.h>
 #include <Adafruit_BME280.h>
