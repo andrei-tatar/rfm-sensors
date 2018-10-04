@@ -9,14 +9,10 @@
 Adafruit_BME280 bme;
 MAX44009 max44009;
 Sensor sensor;
-volatile bool ignoreWake = false;
 
 void inputStateChanged()
 {
-    if (!ignoreWake)
-    {
-        sensor.wake();
-    }
+    sensor.wake();
 }
 
 void setup()
@@ -41,7 +37,6 @@ void setup()
         Adafruit_BME280::standby_duration::STANDBY_MS_1000);
 
     pinMode(PIN_INPUT, INPUT);
-    attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, RISING);
 }
 
 void loop()
@@ -72,10 +67,9 @@ void loop()
     sensor.powerUp();
     sensor.sendAndWait(msg, sizeof(msg));
     sensor.powerDown();
+    sensor.sleep(5);
 
-    ignoreWake = true;
-    sensor.sleep(3);
-    ignoreWake = false;
-
+    attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, RISING);
     sensor.sleep(10 * 60); // 10 min
+    detachInterrupt(digitalPinToInterrupt(PIN_INPUT));
 }
