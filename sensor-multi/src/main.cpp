@@ -66,9 +66,10 @@ void loop()
     sensor.powerUp();
     sensor.sendAndWait(msg, sizeof(msg));
     sensor.powerDown();
-    sensor.sleep(5);
+    sensor.sleep(10);
 
+    EIFR = 0x03; //clear INT0/INT1
     attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, RISING);
-    sensor.sleep(10 * 60); // 10 min
+    sensor.sleep(10 * 59); // 10 min
     detachInterrupt(digitalPinToInterrupt(PIN_INPUT));
 }
