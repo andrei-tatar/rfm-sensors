@@ -125,7 +125,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         return this.sendPacketAndWaitFor(
             Buffer.from([Constants.Cmd_ReadCfg]),
             reply => reply[0] === Constants.Rsp_ReadCfg
-        );
+        ).pipe(map(p => p.slice(2)));
     }
 
     private reinit() {
