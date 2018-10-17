@@ -21,6 +21,9 @@ class Constants {
     static readonly Rsp_PacketSent = 0x93;
     static readonly Rsp_ReceivePacket = 0x94;
 
+    static readonly Cmd_ReadCfg = 0x96;
+    static readonly Rsp_ReadCfg = 0x90;
+
     static readonly Rsp_Init = 0x95;
 
     static readonly Err_InvalidSize = 0x71;
@@ -118,6 +121,13 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
         });
     }
 
+    readConfiguration() {
+        return this.sendPacketAndWaitFor(
+            Buffer.from([Constants.Cmd_ReadCfg]),
+            reply => reply[0] === Constants.Rsp_ReadCfg
+        );
+    }
+
     private reinit() {
         return this.init(this._config)
             .pipe(
@@ -156,7 +166,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             first(),
             timeout(timeoutTime)
         );
-        return merge(waitForReply$, this.below.send(packet))
+        return merge(waitForReply$, this.below.send(packet).pipe(ignoreElements()))
             .pipe(
                 catchError(err => {
                     if (err.name === 'TimeoutError') {

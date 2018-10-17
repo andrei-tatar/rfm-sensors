@@ -14,6 +14,7 @@ module.exports = function (RED) {
         const packageLayer = new PackageLayer(base);
         const radioLayer = new RadioLayer(packageLayer, RED.log);
 
+        this.radio = radioLayer;
         this.connected = base.connected
             .pipe(
                 concatMap(isConnected => {
