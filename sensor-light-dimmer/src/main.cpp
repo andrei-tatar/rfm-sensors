@@ -118,7 +118,7 @@ ISR(TIMER1_COMPA_vect)
     }
 
     PORTD |= 1 << PIN_TRIAC;
-    _delay_us(50);
+    _delay_us(200);
     PORTD &= ~(1 << PIN_TRIAC);
 }
 
@@ -144,7 +144,7 @@ static const uint8_t powerToTicks[100] PROGMEM = {
 void handleRamp(uint32_t now)
 {
     static uint32_t lastChange;
-    if (now + 15 >= lastChange)
+    if (now - lastChange >= 15)
     {
         lastChange = now;
 
