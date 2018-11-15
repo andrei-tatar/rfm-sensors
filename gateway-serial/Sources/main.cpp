@@ -61,6 +61,7 @@ void debugHex(const char* prefix, uint8_t addr, const uint8_t* data, uint8_t siz
 #endif
 
 void setup() {
+	delay(5000);
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		sensors[i].oldReceiveNonce = createNonce();
 		sensors[i].nextReceiveNonce = createNonce();
