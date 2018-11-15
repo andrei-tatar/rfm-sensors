@@ -16,7 +16,7 @@ uint8_t sendTo;
 uint32_t rxLedOn, txLedOn;
 
 #define MIN_ADDR	2
-#define MAX_ADDR	255
+#define MAX_ADDR	100
 #define SENSORS (MAX_ADDR - MIN_ADDR + 1)
 static SensorState sensors[SENSORS];
 
@@ -61,7 +61,6 @@ void debugHex(const char* prefix, uint8_t addr, const uint8_t* data, uint8_t siz
 #endif
 
 void setup() {
-	delay(500); // wait for power to stabilize 
 	for (uint8_t i = 0; i < SENSORS; i++) {
 		sensors[i].oldReceiveNonce = createNonce();
 		sensors[i].nextReceiveNonce = createNonce();
@@ -69,6 +68,7 @@ void setup() {
 	}
 
 	inited = radio.initialize(RF69_433MHZ, 1, 1, true);
+	
 	debug("Radio inited: %d\r\n", inited);
 	serialSendFrame(FRAME_INIT, 0, NULL, 0);
 }
@@ -80,8 +80,12 @@ void sendResponse(SensorState &sensor, uint8_t to, uint8_t rssi, uint32_t nonce,
 	writeNonce(&data[1], nonce);
 	writeNonce(&data[5], sensor.nextReceiveNonce);
 	data[9] = rssi;
+	noInterrupts();
 	radio.send(to, data, sizeof(data));
+	interrupts();
 	debugHex("TX", to, data, sizeof(data));
+	txLedOn = millis() + 150;
+	PTC_BASE_PTR ->PSOR = LED_TX;
 }
 
 void sendRadioDone() {
@@ -92,7 +96,9 @@ void sendRadioDone() {
 void sendRadioNow() {
 	SensorState& sensor = sensors[sendTo - MIN_ADDR];
 	writeNonce(&sendBuffer[1], sensor.nextSendNonce);
+	noInterrupts();
 	radio.send(sendTo, sendBuffer, sendSize);
+	interrupts();
 	debugHex("TX", to, sendBuffer, sendSize);
 	lastSendTime = millis();
 	txLedOn = lastSendTime + 150;
@@ -174,10 +180,10 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 void onRadioPacketReceived(RfmPacket &packet) {
 	if (packet.from < MIN_ADDR || packet.from > MAX_ADDR)
 		return;
-	
+
 	rxLedOn = millis() + 150;
 	PTC_BASE_PTR ->PSOR = LED_RX;
-	
+
 	SensorState& sensor = sensors[packet.from - MIN_ADDR];
 	auto data = packet.data;
 	auto size = packet.size;
@@ -278,24 +284,21 @@ void loop() {
 PE_ISR(portDInterrupt) {
 	if (PORT_PDD_GetPinInterruptFlag(PORTD_BASE_PTR, 4) ) {
 		PORT_PDD_ClearPinInterruptFlag(PORTD_BASE_PTR, 4);
-		if (!inited) 
+		if (!inited)
 			return;
-
-		RfmPacket& packet = radioQueue[radioTail];
+		
+		RfmPacket packet;
 		while (radio.receive(packet)) {
-			if (packet.from < MIN_ADDR || packet.from > MAX_ADDR) {
+			if (packet.from < MIN_ADDR || packet.from > MAX_ADDR ||
+				radioCount == RADIO_QUEUE_SIZE) {
 				continue;
 			}
-			if (radioCount == RADIO_QUEUE_SIZE) {
-				//TODO: we have too many packets in the queue... (store some error for stats)
-				return;
-			}
-
-			noInterrupts();
+			
+			radioQueue[radioTail] = packet;
+			
 			radioCount++;
 			if (++radioTail == RADIO_QUEUE_SIZE)
 				radioTail = 0;
-			interrupts();
 		}
 	}
 }

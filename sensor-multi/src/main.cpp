@@ -7,7 +7,7 @@
 
 Adafruit_BME280 bme;
 MAX44009 max44009;
-Sensor sensor;
+Sensor sensor(false);
 
 void inputStateChanged()
 {
