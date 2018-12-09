@@ -1,0 +1,26 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [{
+        "type": "shell",
+        "dependsOn": ["PlatformIO: Build"],
+        "command": "D:/Programs/Atmel/Studio/7.0/atbackend/atprogram.exe",
+        "label": "Flash ISP Mk2",
+        "args": [
+            "--tool",
+            "avrispmk2",
+            "--interface",
+            "isp",
+            // "--clock",
+            // "500khz",
+            "--device",
+            "atmega169pa",
+            "program",
+            "--chiperase",
+            "--verify",
+            "-f",
+            "d:/Proiecte/rfm-sensors/actuator-valve/.pioenvs/myenv/firmware.elf"
+        ]
+    }]
+}
