@@ -13,7 +13,7 @@ typedef enum
 } MenuState;
 
 static MenuState menuState = Menu_Pos;
-static bool inDetail = false;
+static uint8_t inDetail = 0;
 
 #define ADC_CH_REF 30
 #define ADC_REF_MV 1100
@@ -31,9 +31,26 @@ bool handleMenu()
 {
     if (inDetail)
     {
+        switch (inDetail)
+        {
+        case 1:
+            LCD_writeNum(motorPosition());
+            break;
+        case 2:
+            LCD_writeNum(motorMaxPosition());
+            break;
+        case 3:
+            uint16_t bat = ADC_REF_MV * 1024UL / getAdc(ADC_CH_REF);
+            Lcd_Symbol(DOT, 1);
+            Lcd_Map(0, ' ');
+            Lcd_Map(1, '0' + bat / 1000 % 10);
+            Lcd_Map(2, '0' + bat / 100 % 10);
+            Lcd_Map(3, '0' + bat / 10 % 10);
+            break;
+        }
         if (inputPressed(BUTTON_OK) || inputPressed(BUTTON_MENU))
         {
-            inDetail = false;
+            inDetail = 0;
             return true;
         }
     }
@@ -45,30 +62,24 @@ bool handleMenu()
             LCD_writeText("1POS");
             if (inputPressed(BUTTON_OK))
             {
-                LCD_writeNum(motorPosition());
-                inDetail = true;
+                inDetail = 1;
+                return true;
             }
             break;
         case Menu_Max:
             LCD_writeText("2MAX");
             if (inputPressed(BUTTON_OK))
             {
-                LCD_writeNum(motorMaxPosition());
-                inDetail = true;
+                inDetail = 2;
+                return true;
             }
             break;
         case Menu_Bat:
             LCD_writeText("3BAT");
             if (inputPressed(BUTTON_OK))
             {
-                uint16_t bat = ADC_REF_MV * 1024UL / getAdc(ADC_CH_REF);
-                Lcd_Symbol(DOT, 1);
-                Lcd_Map(0, ' ');
-                Lcd_Map(1, '0' + bat / 1000 % 10);
-                Lcd_Map(2, '0' + bat / 100 % 10);
-                Lcd_Map(3, '0' + bat / 10 % 10);
-
-                inDetail = true;
+                inDetail = 3;
+                return true;
             }
             break;
         case Menu_Exit:

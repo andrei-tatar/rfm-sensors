@@ -5,7 +5,7 @@
 
 bool handleHome()
 {
-    LCD_writeText("HOME");
+    LCD_showTemp(223);
 
     if (inputPressed(BUTTON_MENU))
     {

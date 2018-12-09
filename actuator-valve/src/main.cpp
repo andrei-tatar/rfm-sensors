@@ -20,10 +20,10 @@ void setup()
 
 void loop()
 {
-    if (handleState())
+    bool skipSleep = handleState();
+    skipSleep |= motorTick();
+    if (!skipSleep)
     {
-        return;
+        sleep();
     }
-    sleep();
-    motorTick();
 }
