@@ -6,6 +6,7 @@
 void motorInit();
 void motorCalibrate();
 void motorTurn(uint8_t position);
+void motorTick();
 
 uint16_t motorPosition();
 uint16_t motorMaxPosition();

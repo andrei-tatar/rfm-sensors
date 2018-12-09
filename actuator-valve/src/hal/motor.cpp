@@ -14,37 +14,74 @@
 #define S_TURN_ON PORTE |= 1 << PE2
 #define S_TURN_OFF PORTE &= ~(1 << PE2)
 #define S_VALUE ((PINE >> S_READ) & 1)
+#define M_RUNNING (PORTE & ((1 << M_CLOSE) | (1 << M_OPEN)))
 
-static uint16_t currentPosition;
+static volatile uint16_t currentPosition;
+static volatile uint16_t targetPosition;
+static volatile uint32_t lastPositionChange;
+static volatile int8_t delta = 0;
 static uint16_t maxPosition;
 
 #define ABS_MAX 410
-#define CHANGE_TIMEOUT 1000
+#define CHANGE_TIMEOUT 500
 
 void motorInit()
 {
     DDRE |= (1 << M_CLOSE) | (1 << M_OPEN) | (1 << S_ON);
+    EIMSK |= 1 << PCIE0;
+    PCMSK0 |= 1 << PCINT3;
+}
+
+void motorStop()
+{
+    M_STOP;
+    S_TURN_OFF;
+    delta = 0;
+}
+
+ISR(PCINT0_vect)
+{
+    if (delta == 0)
+    {
+        return;
+    }
+    if (delta == 1)
+    {
+        if (S_VALUE)
+        {
+            currentPosition++;
+            lastPositionChange = millis();
+        }
+    }
+    else if (delta == -1)
+    {
+        if (!S_VALUE)
+        {
+            currentPosition--;
+            lastPositionChange = millis();
+        }
+    }
+    LCD_progressbar(currentPosition, maxPosition);
+    if (currentPosition == targetPosition)
+    {
+        motorStop();
+    }
 }
 
 void motorCalibrate()
 {
     LCD_writeText("ZERO");
 
-    uint32_t lastChange = millis();
-    uint8_t value = S_VALUE;
+    lastPositionChange = millis();
     S_TURN_ON;
     M_START_OPEN;
-    while (millis() - lastChange < CHANGE_TIMEOUT)
+    delta = 1;
+    while (millis() - lastPositionChange < CHANGE_TIMEOUT)
     {
-        uint8_t newValue = S_VALUE;
-        if (newValue != value)
-        {
-            value = newValue;
-            lastChange = millis();
-        }
     }
     M_STOP;
     S_TURN_OFF;
+    delta = 0;
     currentPosition = 0;
 
     LCD_writeText("INST");
@@ -54,59 +91,46 @@ void motorCalibrate()
 
     maxPosition = ABS_MAX;
     motorTurn(100);
+    //wait for motor to stop to determine max position
+    while (M_RUNNING)
+    {
+        motorTick();
+    }
     maxPosition = currentPosition;
     LCD_progressbar(currentPosition, maxPosition);
 }
 
 void motorTurn(uint8_t percent)
 {
-    uint16_t position = percent * (uint32_t)maxPosition / 100;
+    if (percent > 100)
+        percent = 100;
+    targetPosition = percent * (uint32_t)maxPosition / 100;
 
-    if (position > currentPosition)
+    lastPositionChange = millis();
+    if (M_RUNNING)
     {
-        uint8_t oldValue = S_VALUE;
-        uint32_t lastChange = millis();
-        S_TURN_ON;
+        M_STOP;
+        delay(CHANGE_TIMEOUT);
+    }
+    S_TURN_ON;
+    if (targetPosition > currentPosition)
+    {
+        delta = 1;
         M_START_CLOSE;
-        while (currentPosition < position && millis() - lastChange < CHANGE_TIMEOUT)
-        {
-            uint8_t newValue = S_VALUE;
-            if (newValue != oldValue)
-            {
-                if (newValue)
-                {
-                    currentPosition++;
-                    LCD_progressbar(currentPosition, maxPosition);
-                    lastChange = millis();
-                }
-                oldValue = newValue;
-            }
-        }
     }
     else
     {
-        uint8_t oldValue = S_VALUE;
-        uint32_t lastChange = millis();
-        S_TURN_ON;
+        delta = -1;
         M_START_OPEN;
-        while (currentPosition > position && millis() - lastChange < CHANGE_TIMEOUT)
-        {
-            uint8_t newValue = S_VALUE;
-            if (newValue != oldValue)
-            {
-                if (!newValue)
-                {
-                    currentPosition--;
-                    LCD_progressbar(currentPosition, maxPosition);
-                    lastChange = millis();
-                }
-                oldValue = newValue;
-            }
-        }
     }
+}
 
-    M_STOP;
-    S_TURN_OFF;
+void motorTick()
+{
+    if (M_RUNNING && millis() - lastPositionChange > CHANGE_TIMEOUT)
+    {
+        motorStop();
+    }
 }
 
 uint16_t motorPosition()

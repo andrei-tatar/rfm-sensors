@@ -25,4 +25,5 @@ void loop()
         return;
     }
     sleep();
+    motorTick();
 }
