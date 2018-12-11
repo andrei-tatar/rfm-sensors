@@ -3,12 +3,15 @@
 #include "hal/motor.h"
 #include "hal/zerolcd.h"
 #include "state.h"
+#include "comm.h"
 
 typedef enum
 {
     Menu_Pos,
     Menu_Max,
     Menu_Bat,
+    Menu_Rssi,
+    Menu_NextTry,
     Menu_Exit,
 } MenuState;
 
@@ -40,12 +43,21 @@ bool handleMenu()
             LCD_writeNum(motorMaxPosition());
             break;
         case 3:
+        {
             uint16_t bat = ADC_REF_MV * 1024UL / getAdc(ADC_CH_REF);
             Lcd_Symbol(DOT, 1);
             Lcd_Map(0, ' ');
             Lcd_Map(1, '0' + bat / 1000 % 10);
             Lcd_Map(2, '0' + bat / 100 % 10);
             Lcd_Map(3, '0' + bat / 10 % 10);
+        }
+        break;
+        case 4:
+            LCD_writeNum(commLastRssi() / 2);
+            Lcd_Map(0, '-');
+            break;
+        case 5:
+            LCD_writeNum(commNextTry());
             break;
         }
         if (inputPressed(BUTTON_OK) || inputPressed(BUTTON_MENU))
@@ -79,6 +91,22 @@ bool handleMenu()
             if (inputPressed(BUTTON_OK))
             {
                 inDetail = 3;
+                return true;
+            }
+            break;
+        case Menu_Rssi:
+            LCD_writeText("4RSS");
+            if (inputPressed(BUTTON_OK))
+            {
+                inDetail = 4;
+                return true;
+            }
+            break;
+        case Menu_NextTry:
+            LCD_writeText("5NXT");
+            if (inputPressed(BUTTON_OK))
+            {
+                inDetail = 5;
                 return true;
             }
             break;

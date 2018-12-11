@@ -1,11 +1,19 @@
 #include "hal/input.h"
 #include "hal/lcd.h"
 #include "hal/motor.h"
+#include "comm.h"
 #include "state.h"
 
 bool handleHome()
 {
-    LCD_showTemp(223);
+    if (commTemperature())
+    {
+        LCD_showTemp(commTemperature());
+    }
+    else
+    {
+        LCD_writeText("HOME");
+    }
 
     if (inputPressed(BUTTON_MENU))
     {
