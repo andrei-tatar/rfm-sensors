@@ -5,7 +5,7 @@
 
 Sensor sensor;
 
-void onDataReceived(const uint8_t *data, uint8_t size)
+void onDataReceived(const uint8_t *data, uint8_t size, uint8_t rssi)
 {
     digitalWrite(LED, HIGH);
     digitalWrite(LED, LOW);
