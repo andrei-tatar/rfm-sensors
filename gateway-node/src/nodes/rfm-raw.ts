@@ -1,12 +1,11 @@
 import * as moment from 'moment';
-import { combineLatest, concat, defer, interval, merge, Observable, of, Subject } from 'rxjs';
+import { combineLatest, concat, defer, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
 import {
     catchError, delay, filter, finalize,
     startWith, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
-import { RadioLayer } from '../communication/radio';
 
 module.exports = function (RED) {
 
@@ -70,19 +69,13 @@ module.exports = function (RED) {
                     }),
                     takeUntil(stop),
                 ).subscribe();
-            } else if (msg.type === 'read-config') {
-                const radio = bridge.radio as RadioLayer;
-                radio.readConfiguration().pipe(
-                    catchError(err => node.error(`while reading radio config: ${err.message}`)),
-                    takeUntil(stop),
-                ).subscribe(data => node.send({
-                    payload: data,
-                    topic: 'radio-config-response',
-                }));
             } else {
                 const data = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 nodeLayer.send(data).pipe(
-                    catchError(err => node.error(`while setting bright: ${err.message}`)),
+                    catchError(err => {
+                        node.error(`while sending: ${err.message}`);
+                        return EMPTY;
+                    }),
                     takeUntil(stop),
                 ).subscribe();
             }
