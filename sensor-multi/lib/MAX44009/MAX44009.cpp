@@ -99,8 +99,6 @@ void read(const uint8_t address, const uint8_t registeraddress, uint8_t buff[], 
         buff[_i] = Wire.read();
         _i++;
     }
-
-    Wire.endTransmission(true); 		// Stop Condition
 }
 
 uint8_t MAX44009::probe(const uint8_t address)
@@ -135,6 +133,4 @@ void MAX44009::read(const uint8_t address, const uint8_t registeraddress, uint8_
         buff[_i] = Wire.read();
         _i++;
     }
-
-    Wire.endTransmission(true); 		// Stop Condition
 }
