@@ -6,5 +6,6 @@ bool commUpdate();
 uint8_t commLastRssi();
 uint16_t commTemperature();
 uint16_t commNextTry();
+uint16_t commBattery();
 
 #endif

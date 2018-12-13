@@ -18,18 +18,6 @@ typedef enum
 static MenuState menuState = Menu_Pos;
 static uint8_t inDetail = 0;
 
-#define ADC_CH_REF 30
-#define ADC_REF_MV 1100
-static inline uint16_t getAdc(uint8_t channel)
-{
-    ADMUX = (1 << REFS0) | (channel & 0x1F);
-    ADCSRA = (1 << ADEN) | (1 << ADSC) | (1 << ADPS2);
-    while (ADCSRA & (1 << ADSC))
-    {
-    }
-    return ADC;
-}
-
 bool handleMenu()
 {
     if (inDetail)
@@ -44,7 +32,7 @@ bool handleMenu()
             break;
         case 3:
         {
-            uint16_t bat = ADC_REF_MV * 1024UL / getAdc(ADC_CH_REF);
+            uint16_t bat = commBattery();
             Lcd_Symbol(DOT, 1);
             Lcd_Map(0, ' ');
             Lcd_Map(1, '0' + bat / 1000 % 10);

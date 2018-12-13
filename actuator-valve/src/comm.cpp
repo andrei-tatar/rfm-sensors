@@ -6,14 +6,16 @@
 #include "hal/motor.h"
 
 #define POLL_SECONDS 300
+#define POLL_FAIL_SECONDS 10
 #define POLL_ALIVE_MS 100
-void spiTransfer(uint8_t *data, uint8_t len);
 
+void spiTransfer(uint8_t *data, uint8_t len);
 static Sensor sensor(spiTransfer);
 static bool received = false;
-static uint8_t lastRssi = 0xFF;
+static uint8_t lastRssi = 0;
 static uint16_t temperature = 0;
 static uint32_t lastSendRtc;
+static uint16_t battery = 0;
 
 void spiTransfer(uint8_t *data, uint8_t len)
 {
@@ -29,12 +31,38 @@ void spiTransfer(uint8_t *data, uint8_t len)
     PORTF |= (1 << PF7);
 }
 
+static void readBattery()
+{
+    ADMUX = (1 << REFS0) | 30;
+    ADCSRA = (1 << ADEN) | (1 << ADSC) | (1 << ADPS2);
+    while (ADCSRA & (1 << ADSC))
+    {
+    }
+    uint16_t adc = ADC;
+    uint16_t newBatteryVoltage = 1100 * 1024UL / adc; //mV
+    if (battery != 0)
+    {
+        battery = (battery + newBatteryVoltage) / 2;
+    }
+    else
+    {
+        battery = newBatteryVoltage;
+    }
+}
+
 void messageReceived(const uint8_t *data, uint8_t length, uint8_t rssi)
 {
     received = true;
     sensor.powerDown();
 
-    lastRssi = rssi;
+    if (lastRssi != 0)
+    {
+        lastRssi = (lastRssi + rssi) / 2;
+    }
+    else
+    {
+        lastRssi = rssi;
+    }
     if (data[0] == 0xDE && length == 4)
     {
         motorTurn(data[1]);
@@ -77,6 +105,11 @@ uint16_t commNextTry()
     return POLL_SECONDS - (rtcTime() - lastSendRtc);
 }
 
+uint16_t commBattery()
+{
+    return battery;
+}
+
 bool commUpdate()
 {
     static bool sending = false;
@@ -91,7 +124,7 @@ bool commUpdate()
             {
                 sending = false;
                 sensor.powerDown();
-                lastSendRtc -= POLL_SECONDS - 5; //try again in 5 sec
+                lastSendRtc -= POLL_SECONDS - POLL_FAIL_SECONDS;
             }
         }
         else
@@ -106,12 +139,14 @@ bool commUpdate()
         {
             lastSendRtc = now;
             sending = true;
+            readBattery();
 
             sensor.powerUp();
             lastSendMillis = millis();
             received = false;
 
-            uint8_t reqData[1] = {0x01};
+            uint8_t sendBat = battery / 10 - 100;
+            uint8_t reqData[2] = {'B', sendBat};
             sending = sensor.send(reqData, sizeof(reqData));
         }
     }
