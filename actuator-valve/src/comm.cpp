@@ -97,7 +97,7 @@ void commInit()
     sensor.powerDown();
     sensor.onMessage(messageReceived);
 
-    lastSendRtc = rtcTime() - POLL_SECONDS - 1;
+    lastSendRtc = rtcTime() - POLL_SECONDS - 3;
 }
 
 uint16_t commNextTry()
