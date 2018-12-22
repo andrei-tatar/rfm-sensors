@@ -45,7 +45,7 @@ void sendState()
     sensor.send(send, sizeof(send));
 }
 
-void onData(const uint8_t *data, uint8_t length)
+void onData(const uint8_t *data, uint8_t length, uint8_t rssi)
 {
     if (data[0] == CMD_SET && length == 2)
     {
