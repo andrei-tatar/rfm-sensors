@@ -46,7 +46,7 @@ module.exports = function (RED) {
                 }));
 
         node.on('input', msg => {
-            if (msg.type === 'firmware') {
+            if (msg.topic === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
                 progress.pipe(throttleTime(1000)).subscribe(p => {

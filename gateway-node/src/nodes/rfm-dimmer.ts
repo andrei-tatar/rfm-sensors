@@ -87,7 +87,7 @@ module.exports = function (RED) {
             });
 
         this.on('input', msg => {
-            if (msg.type === 'firmware') {
+            if (msg.topic === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
                 progress.pipe(throttleTime(1000)).subscribe(p => {
@@ -114,7 +114,7 @@ module.exports = function (RED) {
                 if (!isFinite(value)) {
                     return;
                 }
-                if (msg.type === 'led') {
+                if (msg.topic === 'led') {
                     ledBrightness = value;
                     // set led bright
                     nodeLayer
