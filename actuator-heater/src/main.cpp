@@ -18,7 +18,7 @@ void onData(const uint8_t *data, uint8_t length, uint8_t rssi)
         fail = false;
         digitalWrite(PIN_CMD, *data);
         lastReceive = millis();
-        FastLED.showColor(CRGB(0, *data ? 255 : 0, 100));
+        FastLED.showColor(CRGB(0, *data ? 5 : 0, 5));
     }
 }
 
@@ -41,7 +41,7 @@ void loop()
 
     if (!fail && (lastReceive == 0 || millis() - lastReceive > TIMEOUT))
     {
-        FastLED.showColor(CRGB(255, 0, 0));
+        FastLED.showColor(CRGB(5, 0, 0));
         digitalWrite(PIN_CMD, LOW);
         fail = true;
     }
