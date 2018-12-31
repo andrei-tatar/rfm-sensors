@@ -26,22 +26,23 @@ void updateChecksum(uint16_t &checksum, uint8_t data)
 void pckgLoop()
 {
     static uint8_t status = 0;
-    static uint32_t last = 0;
+    // static uint32_t last = 0;
     static uint8_t pckg[MAX_PCKG_SIZE];
     static uint8_t pckgSize;
     static uint8_t pckgOffset;
     static uint16_t pckgChksum;
 
-    uint32_t now = millis();
+    // uint32_t now = millis();
 
-    if (status && now - last > 300)
-    {
-        status = 0;
-    }
+    // if (status && now - last > 300)
+    // {
+    //     status = 0;
+    // }
 
     while (Serial.available())
     {
         uint8_t data = Serial.read();
+        // last = millis();
 
         switch (status)
         {
@@ -51,7 +52,13 @@ void pckgLoop()
             break;
         case 1:
             if (data == FRAME_HEADER_2)
+            {
                 status = 2;
+            }
+            else
+            {
+                status = 0;
+            }
             break;
         case 2:
             pckgSize = data;
@@ -64,6 +71,7 @@ void pckgLoop()
             updateChecksum(pckgChksum, pckgSize);
             pckgOffset = 0;
             status = 3;
+            break;
         case 3:
             pckg[pckgOffset++] = data;
             updateChecksum(pckgChksum, data);
@@ -73,7 +81,7 @@ void pckgLoop()
             }
             break;
         case 4:
-            if (pckgChksum >> 8 == data)
+            if ((pckgChksum >> 8) == data)
             {
                 status = 5;
             }

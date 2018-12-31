@@ -200,7 +200,9 @@ void loop()
             channel = lastChannel;
         }
 
-        if (forceSend || volume != lastVol || pwr != lastPwr || channel != lastChannel)
+        if (forceSend ||
+            abs((int16_t)volume - (int16_t)lastVol) > 2 ||
+            pwr != lastPwr || channel != lastChannel)
         {
             forceSend = false;
             lastPwr = pwr;

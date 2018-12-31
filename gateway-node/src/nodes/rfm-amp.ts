@@ -33,22 +33,23 @@ module.exports = function (RED) {
 
             const todo = [];
 
-            if (typeof msg !== 'object') {
+            if (typeof msg !== 'object' || typeof msg.payload !== 'object') {
                 return;
             }
 
-            if ('on' in msg) {
-                todo.push(pckg.send(Buffer.from([0xE0, msg.on ? 1 : 0])));
+            const p = msg.payload;
+            if ('on' in p) {
+                todo.push(pckg.send(Buffer.from([0xE0, p.on ? 1 : 0])));
             }
 
-            if ('channel' in msg && typeof msg.channel === 'number' &&
-                msg.channel >= 1 && msg.channel <= 8) {
-                todo.push(pckg.send(Buffer.from([0xCA, msg.channel])));
+            if ('channel' in p && typeof p.channel === 'number' &&
+                p.channel >= 1 && p.channel <= 8) {
+                todo.push(pckg.send(Buffer.from([0xCA, p.channel])));
             }
 
-            if ('volume' in msg && typeof msg.volume === 'number' &&
-                msg.volume > 0 && msg.volume <= 255) {
-                todo.push(pckg.send(Buffer.from([0x10, msg.volume])));
+            if ('volume' in p && typeof p.volume === 'number' &&
+                p.volume > 0 && p.volume <= 255) {
+                todo.push(pckg.send(Buffer.from([0x10, p.volume])));
             }
 
 
