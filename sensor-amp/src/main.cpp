@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "package.h"
 
 #define PIN_POWER 10
 #define PIN_ALLOW 11
@@ -9,6 +10,19 @@
 #define IR_VOL_UP 0x5ea158a7
 #define IR_VOL_DOWN 0x5ea1d827
 #define IR_POWER 0x7e8154ab
+
+uint32_t channelMap[8] = {
+    0x5ea103fc, // line 3
+    0x5ea1837c, // line 2
+    0x5ea19867, // line 1
+    0x5ea1ca34, // optical
+    0x5ea118e7, // coaxial
+    0x5ea1a857, // CD
+    0x5ea16897, // tuner
+    0x5ea128d7, // phono
+};
+
+static bool forceSend = true;
 
 void setup()
 {
@@ -21,14 +35,16 @@ void setup()
     digitalWrite(PIN_ALLOW, HIGH);
     pinMode(PIN_REMOTE, OUTPUT);
     digitalWrite(PIN_REMOTE, HIGH);
-
-    delay(2000); //ignore ESP startup
-
-    Serial.begin(57600);
+    pckgInit();
 }
 
 uint8_t getActiveChannel()
 {
+    if (!digitalRead(PIN_POWER))
+    {
+        return 0;
+    }
+
     for (uint8_t ch = 0; ch < 8; ch++)
     {
         if (digitalRead(2 + ch) == LOW)
@@ -110,15 +126,22 @@ void setVolume(uint8_t vol)
     int16_t delta = (int16_t)vol - current;
     if (abs(delta) > 2)
     {
-        uint32_t lastSend = millis();
+        uint32_t now = millis();
+        uint32_t lastSend = now;
+        uint32_t start = now;
         sendRaw(delta > 0
                     ? IR_VOL_UP
                     : IR_VOL_DOWN);
+
         while (abs((int16_t)vol - current) > 2)
         {
             current = getVolume();
-            uint32_t now = millis();
-            if (now + 108 >= lastSend)
+            now = millis();
+            if (now - start > 5000 || !digitalRead(PIN_POWER))
+            {
+                break;
+            }
+            if (now - lastSend >= 108)
             {
                 lastSend = now;
                 sendRepeat();
@@ -129,33 +152,62 @@ void setVolume(uint8_t vol)
     resumeIr();
 }
 
+void pckgReceived(uint8_t *data, uint8_t length)
+{
+    switch (data[0])
+    {
+    case 0x01:
+        forceSend = true;
+        break;
+    case 0xE0:
+        if (!data[0] != !digitalRead(PIN_POWER))
+        {
+            sendCode(IR_POWER);
+        }
+        break;
+    case 0xCA:
+        if (getActiveChannel() != data[1] && data[1] < sizeof(channelMap))
+        {
+            sendCode(channelMap[data[1] - 1]);
+        }
+        break;
+    case 0x10:
+        setVolume(data[1]);
+        break;
+    }
+}
+
 void loop()
 {
-    switch (Serial.read())
+    pckgLoop();
+
+    static bool lastPwr = 0xff;
+    static uint8_t lastChannel = 0xff;
+    static uint8_t lastVol = 0xff;
+    static uint32_t lastCheck = 0;
+
+    uint32_t now = millis();
+    if (now - lastCheck > 300 || forceSend)
     {
-    case 'i':
-        Serial.print("power: ");
-        Serial.println(digitalRead(PIN_POWER), 10);
-        Serial.print("vol: ");
-        Serial.println(getVolume(), 10);
-        Serial.print("ch: ");
-        Serial.println(getActiveChannel(), 10);
-        break;
-    case 'p':
-        sendCode(IR_POWER);
-        break;
-    case 'M':
-        setVolume(50);
-        break;
-    case 'm':
-        setVolume(10);
-        Serial.println("ok;");
-        break;
-    case 's':
-        digitalWrite(PIN_ALLOW, LOW);
-        break;
-    case 'r':
-        digitalWrite(PIN_ALLOW, HIGH);
-        break;
+        lastCheck = now;
+
+        bool pwr = digitalRead(PIN_POWER);
+        uint8_t channel = getActiveChannel();
+        uint8_t volume = getVolume();
+
+        if (pwr && channel == 0)
+        {
+            channel = lastChannel;
+        }
+
+        if (forceSend || volume != lastVol || pwr != lastPwr || channel != lastChannel)
+        {
+            forceSend = false;
+            lastPwr = pwr;
+            lastChannel = channel;
+            lastVol = volume;
+            uint8_t status[4] = {0x01, pwr, channel, volume};
+            pckgSend(status, sizeof(status));
+        }
     }
 }

@@ -1,27 +1,24 @@
 import * as moment from 'moment';
-import { combineLatest, EMPTY, interval } from 'rxjs';
+import { combineLatest, concat, EMPTY, interval } from 'rxjs';
 import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operators';
 
+import { PackageLayer } from '../communication/package';
 import { getBaseLayer } from '../util';
-import { PackageLayer } from './../communication/package';
-import { Decoder } from './../decoders/decoder';
 
 module.exports = function (RED) {
 
-    function IrNode(config) {
-        const decoder = new Decoder();
-
+    function AmpNode(config) {
         RED.nodes.createNode(this, config);
         const base = getBaseLayer(config.port, RED.log);
         const pckg = new PackageLayer(base);
         const state = pckg.data.pipe(
             map(msg => {
-                if (msg[0] === 1) {
-                    const pulses: number[] = [];
-                    for (let i = 1; i < msg.length; i++) {
-                        pulses.push(msg[i] * 50);
-                    }
-                    return decoder.decode(pulses);
+                if (msg[0] === 1 && msg.length === 4) {
+                    return {
+                        on: msg[1] !== 0,
+                        channel: msg[2],
+                        volume: msg[3],
+                    };
                 }
                 return null;
             }),
@@ -33,16 +30,32 @@ module.exports = function (RED) {
         );
 
         this.on('input', msg => {
-            if (typeof msg.payload !== 'string') { return; }
 
-            const pulses = decoder.encode(msg.payload);
-            if (!pulses) { return; }
+            const todo = [];
 
-            const buffer = Buffer.from([1, ...pulses.map(p => Math.round(p / 50))]);
-            pckg.send(buffer)
+            if (typeof msg !== 'object') {
+                return;
+            }
+
+            if ('on' in msg) {
+                todo.push(pckg.send(Buffer.from([0xE0, msg.on ? 1 : 0])));
+            }
+
+            if ('channel' in msg && typeof msg.channel === 'number' &&
+                msg.channel >= 1 && msg.channel <= 8) {
+                todo.push(pckg.send(Buffer.from([0xCA, msg.channel])));
+            }
+
+            if ('volume' in msg && typeof msg.volume === 'number' &&
+                msg.volume > 0 && msg.volume <= 255) {
+                todo.push(pckg.send(Buffer.from([0x10, msg.volume])));
+            }
+
+
+            concat(...todo)
                 .pipe(
                     catchError(err => {
-                        this.error(`while sending code: ${err.message}`);
+                        this.error(`while sending to amp: ${err.message}`);
                         return EMPTY;
                     })
                 ).subscribe();
@@ -66,5 +79,5 @@ module.exports = function (RED) {
         base.connect();
     }
 
-    RED.nodes.registerType('rfm-ir', IrNode);
+    RED.nodes.registerType('rfm-amp', AmpNode);
 };
