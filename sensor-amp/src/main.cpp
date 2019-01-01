@@ -160,7 +160,7 @@ void pckgReceived(uint8_t *data, uint8_t length)
         forceSend = true;
         break;
     case 0xE0:
-        if (!data[0] != !digitalRead(PIN_POWER))
+        if (!data[1] != !digitalRead(PIN_POWER))
         {
             sendCode(IR_POWER);
         }
