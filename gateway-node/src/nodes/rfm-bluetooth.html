@@ -1,0 +1,36 @@
+<script type="text/javascript">
+    RED.nodes.registerType('rfm-bluetooth', {
+        category: 'rfm',
+        color: '#e6a4a5',
+        defaults: {
+            address: {
+                value: '00:00:00:00:00:00',
+                required: true
+            },
+            name: {
+                value: 'bt media'
+            },
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "bridge-dash.png",
+        paletteLabel: 'bluetooth',
+        label: function () {
+            return this.name || 'bluetooth';
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="rfm-bluetooth">
+    <div class="form-row">
+        <label for="node-input-address"><i class="fa fa-sort"></i> MAC Address</label>
+        <input type="text" id="node-input-address">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="rfm-bluetooth">
+</script>

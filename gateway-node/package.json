@@ -18,6 +18,7 @@
     "typescript": "^3.0.3"
   },
   "dependencies": {
+    "dbus-native": "^0.4.0",
     "intel-hex": "git+https://github.com/andrei-tatar/intel-hex.js.git",
     "moment": "^2.22.2",
     "rxjs": "^6.3.2",
@@ -26,6 +27,7 @@
   },
   "node-red": {
     "nodes": {
+      "rfm-bluetooth": "dist/nodes/rfm-bluetooth.js",
       "rfm-bridge": "dist/nodes/rfm-bridge.js",
       "rfm-input": "dist/nodes/rfm-input.js",
       "rfm-ir": "dist/nodes/rfm-ir.js",

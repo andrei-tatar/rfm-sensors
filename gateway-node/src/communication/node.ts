@@ -54,7 +54,7 @@ export class RadioNode implements MessageLayer<Buffer> {
                 concatMap(chunk => {
                     const position = chunk * chunkSize;
                     const thisChunkSize = Math.min(chunkSize, data.length - position);
-                    const chunkBuffer = new Buffer(thisChunkSize);
+                    const chunkBuffer = Buffer.alloc(thisChunkSize);
                     data.copy(chunkBuffer, 0, position, position + chunkSize);
                     return reportStepWhenDone(this.writeAt(header.length + position, chunkBuffer));
                 })
@@ -93,7 +93,7 @@ export class RadioNode implements MessageLayer<Buffer> {
     }
 
     private writeAt(addr: number, data: Buffer) {
-        const pack = new Buffer(1 + 2 + data.length);
+        const pack = Buffer.alloc(1 + 2 + data.length);
         pack[0] = 0xCB; // write at address
         pack.writeUInt16LE(addr, 1);
         data.copy(pack, 3, 0, data.length);

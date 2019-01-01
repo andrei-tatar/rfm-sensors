@@ -61,7 +61,7 @@ export class PackageLayer implements MessageLayer<Buffer> {
                     break;
                 case RxStatus.Size:
                     state.size = data;
-                    state.buffer = new Buffer(data);
+                    state.buffer = Buffer.alloc(data);
                     state.offset = 0;
                     state.status = RxStatus.Data;
                     break;
@@ -107,7 +107,7 @@ export class PackageLayer implements MessageLayer<Buffer> {
 
     send(data: Buffer) {
         return defer(() => {
-            const packet = new Buffer(data.length + 5);
+            const packet = Buffer.alloc(data.length + 5);
             let offset = packet.writeUInt8(FrameHeader1, 0);
             offset = packet.writeUInt8(FrameHeader2, offset);
             offset = packet.writeUInt8(data.length, offset);

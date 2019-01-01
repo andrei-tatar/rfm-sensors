@@ -46,7 +46,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             }),
             filter(p => p[0] === Constants.Rsp_ReceivePacket),
             map(p => {
-                const msg = new Buffer(p.length - 2);
+                const msg = Buffer.alloc(p.length - 2);
                 p.copy(msg, 0, 2, p.length);
                 return { data: msg, addr: p[1] };
             }),
@@ -75,7 +75,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
 
     init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
         this._config = { key, freq, networkId, powerLevel };
-        const aux = new Buffer(100);
+        const aux = Buffer.alloc(100);
         let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
         if (key !== void 0) {
             if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
@@ -98,7 +98,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             offset = aux.writeUInt8(powerLevel, offset);
         }
         if (offset !== 0) {
-            const configure = new Buffer(offset);
+            const configure = Buffer.alloc(offset);
             aux.copy(configure, 0, 0, offset);
             this.logger.info('radio: sending configuration');
             return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured)
@@ -130,7 +130,7 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
     }
 
     private sendInternal({ data, addr }: SendMessage) {
-        const pack = new Buffer(2 + data.length);
+        const pack = Buffer.alloc(2 + data.length);
         pack[0] = Constants.Cmd_SendPacket; // FRAME_SENDPACKET
         pack[1] = addr;
         data.copy(pack, 2);
