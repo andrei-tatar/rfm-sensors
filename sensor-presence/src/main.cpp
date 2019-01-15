@@ -51,6 +51,6 @@ void loop()
 
     EIFR = 0x03; //clear INT0/INT1
     attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, RISING);
-    sensor.sleep(10 * 59); // 10 min
+    sensor.sleep(1800); // 30 min
     detachInterrupt(digitalPinToInterrupt(PIN_INPUT));
 }
