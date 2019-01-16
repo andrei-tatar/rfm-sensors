@@ -31,7 +31,8 @@
       "rfm-ir": "dist/nodes/rfm-ir.js",
       "rfm-amp": "dist/nodes/rfm-amp.js",
       "rfm-dimmer": "dist/nodes/rfm-dimmer.js",
-      "rfm-raw": "dist/nodes/rfm-raw.js"
+      "rfm-raw": "dist/nodes/rfm-raw.js",
+      "rfm-multithermostat": "dist/nodes/rfm-multithermostat.js"
     }
   }
 }

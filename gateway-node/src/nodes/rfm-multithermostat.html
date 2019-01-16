@@ -1,0 +1,44 @@
+<script type="text/javascript">
+    RED.nodes.registerType('rfm-multithermostat', {
+        category: 'rfm',
+        color: '#e6a4a5',
+        defaults: {
+            bridge: {
+                type: 'rfm-bridge',
+                required: true
+            },
+            name: {
+                value: 'multithermostat'
+            },
+            topic: {
+                value: ''
+            },
+            address: {
+                value: 2,
+                required: true,
+                validate: RED.validators.regex(/\d+/)
+            },
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "bridge-dash.png",
+        paletteLabel: 'multithermostat',
+        label: function () {
+            return this.name || 'multithermostat';
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="rfm-multithermostat">
+    <div class="form-row">
+        <label for="node-input-bridge"><i class="fa fa-table"></i> Bridge</label>
+        <input type="text" id="node-input-bridge">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="rfm-multithermostat">
+</script>
