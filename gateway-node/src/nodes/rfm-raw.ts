@@ -11,7 +11,6 @@ module.exports = function (RED) {
 
     function RawNode(config) {
         RED.nodes.createNode(this, config);
-        const node = this;
 
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
@@ -33,32 +32,32 @@ module.exports = function (RED) {
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
-                node.status(isConnected
+                this.status(isConnected
                     ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
                     : { fill: 'red', shape: 'ring', text: 'not connected' });
             });
 
         nodeLayer.data.pipe(takeUntil(stop))
             .subscribe(data =>
-                node.send({
+                this.send({
                     payload: data,
                     topic: config.topic,
                 }));
 
-        node.on('input', msg => {
+        this.on('input', msg => {
             if (msg.topic === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
                 progress.pipe(throttleTime(1000)).subscribe(p => {
-                    node.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
+                    this.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
                 concat(
                     nodeLayer.upload(hex, progress),
-                    defer(() => node.status({ fill: 'green', shape: 'dot', text: `upload done!` }))
+                    defer(() => this.status({ fill: 'green', shape: 'dot', text: `upload done!` }))
                 ).pipe(
                     catchError(err => {
-                        node.error(`while uploading hex: ${err.message}`);
+                        this.error(`while uploading hex: ${err.message}`);
                         return of(null);
                     }),
                     delay(5000),
@@ -73,7 +72,7 @@ module.exports = function (RED) {
                 const data = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 nodeLayer.send(data).pipe(
                     catchError(err => {
-                        node.error(`while sending: ${err.message}`);
+                        this.error(`while sending: ${err.message}`);
                         return EMPTY;
                     }),
                     takeUntil(stop),
@@ -81,7 +80,7 @@ module.exports = function (RED) {
             }
         });
 
-        node.on('close', () => {
+        this.on('close', () => {
             stop.next();
             stop.complete();
         });
