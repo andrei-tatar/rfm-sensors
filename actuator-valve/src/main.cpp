@@ -14,8 +14,9 @@ void setup()
     inputInit();
     initLCD();
     rtcInit();
-    motorCalibrate();
     commInit();
+    motorCalibrate();
+    commStart();
     Lcd_Symbol(AUTO, 1);
 }
 

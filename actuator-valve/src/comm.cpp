@@ -48,6 +48,7 @@ static void readBattery()
     {
         battery = newBatteryVoltage;
     }
+    ADCSRA &= ~(1 << ADEN);
 }
 
 void messageReceived(const uint8_t *data, uint8_t length, uint8_t rssi)
@@ -96,7 +97,10 @@ void commInit()
     sensor.powerLevel(31);
     sensor.powerDown();
     sensor.onMessage(messageReceived);
+}
 
+void commStart()
+{
     lastSendRtc = rtcTime() - POLL_SECONDS - 3;
 }
 

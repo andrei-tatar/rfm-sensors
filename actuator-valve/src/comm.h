@@ -2,6 +2,7 @@
 #define __COMM_H__
 
 void commInit();
+void commStart();
 bool commUpdate();
 uint8_t commLastRssi();
 uint16_t commTemperature();
