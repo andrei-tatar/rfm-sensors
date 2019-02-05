@@ -86,7 +86,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
 
         return this._connected.pipe(
             first(),
-            concatMap<boolean, void>(c => {
+            concatMap<boolean, Promise<void>>(c => {
                 if (!c) { throw new Error('telnet: not connected'); }
                 return this.sendRaw(data);
             })
