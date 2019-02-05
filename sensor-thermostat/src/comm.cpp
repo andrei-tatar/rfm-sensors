@@ -49,13 +49,14 @@ bool commLoop()
             lastPressure = pressure;
 
             sensor.powerUp();
-            uint8_t msg[10] = {1, 'T', 0, 0, 'H', 0, 0, 'P', 0, 0};
-            msg[2] = temperature >> 8;
-            msg[3] = temperature;
-            msg[5] = humidity >> 8;
-            msg[6] = humidity;
-            msg[8] = pressure >> 8;
-            msg[9] = pressure;
+            uint8_t msg[8] = {1};
+            msg[1] = temperature >> 8;
+            msg[2] = temperature;
+            msg[3] = humidity >> 8;
+            msg[4] = humidity;
+            msg[5] = pressure >> 8;
+            msg[6] = pressure;
+            msg[7] = sensor.readVoltage() / 10 - 100;
             sensor.sendAndWait(msg, sizeof(msg));
             sensor.powerDown();
         }

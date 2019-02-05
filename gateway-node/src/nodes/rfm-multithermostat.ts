@@ -2,7 +2,7 @@ import { writeFile } from 'fs';
 import { cloneDeep, isEqual } from 'lodash';
 import { homedir } from 'os';
 import { join } from 'path';
-import { BehaviorSubject, combineLatest, concat, EMPTY, interval, NEVER, Observable, of, Subject } from 'rxjs';
+import { BehaviorSubject, combineLatest, EMPTY, interval, Observable, Subject } from 'rxjs';
 import {
     catchError, debounceTime, distinctUntilChanged, filter,
     map, publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil, tap
@@ -260,11 +260,21 @@ module.exports = function (RED) {
             const roomSettings = settings.rooms[key];
 
             const thermostat = create(roomSettings.thermostatAddress);
+            const values$ = thermostat.data.pipe(
+                filter(msg => msg[0] === 0x01 && msg.length === 10),
+                map(msg => ({
+                    temperature: msg.readInt16BE(1) / 256, // deg C
+                    humidity: msg.readInt16BE(3) / 100, // %
+                    pressure: msg.readInt16BE(5) / 10, // hPa
+                    battery: msg.readUInt8(7) / 100 + 1, // volts
+                })),
+                publishReplay(1),
+                refCount(),
+            );
 
-            // TODO: get those from thermostat
-            const thermostatBattery$ = of(0);
-            const temperature$ = concat(of(22), NEVER);
-            const humidity$ = concat(of(60), NEVER);
+            const thermostatBattery$ = values$.pipe(map(s => s.battery));
+            const temperature$ = values$.pipe(map(s => s.temperature));
+            const humidity$ = values$.pipe(map(s => s.humidity));
 
             const valve = create(roomSettings.valveAddress);
             const valveBattery$ = valve.data.pipe(filter(b => b.length === 2 && b[0] === 'B'.charCodeAt(0)), map(b => b[1] / 100 + 1));
