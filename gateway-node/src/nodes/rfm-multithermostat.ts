@@ -103,6 +103,14 @@ module.exports = function (RED) {
         const connected: Observable<boolean> = bridge.connected;
         const nodes = createObservableNodes(this, settings, close$, bridge.create);
 
+        combineLatest(connected, nodes.enable$, nodes.on$).pipe(
+            takeUntil(close$)
+        ).subscribe(([isConnected, enable, on]) => {
+            this.status(isConnected
+                ? { fill: 'green', shape: 'dot', text: `connected (E:${enable},O:${on})` }
+                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        });
+
         nodes.settings$.pipe(
             skip(1),
             takeUntil(close$),
