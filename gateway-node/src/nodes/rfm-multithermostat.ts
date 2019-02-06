@@ -159,6 +159,7 @@ module.exports = function (RED) {
 
                     return needsHeating;
                 }, false),
+                startWith(false),
                 distinctUntilChanged(),
                 tap(needsHeating =>
                     room.valveOpenPercent$.next(needsHeating
@@ -267,7 +268,7 @@ module.exports = function (RED) {
 
             const thermostat = create(roomSettings.thermostatAddress);
             const values$ = thermostat.data.pipe(
-                filter(msg => msg[0] === 0x01 && msg.length === 10),
+                filter(msg => msg[0] === 0x01 && msg.length === 8),
                 map(msg => ({
                     temperature: msg.readInt16BE(1) / 256, // deg C
                     humidity: msg.readInt16BE(3) / 100, // %
