@@ -215,6 +215,7 @@ module.exports = function (RED) {
     RED.nodes.registerType('rfm-multithermostat', MultiThermostatNode);
 
     function createObservableNodes<T extends HeatingSettings>(
+        this: unknown,
         node,
         settings: T,
         stop$: Observable<any>,
@@ -305,7 +306,7 @@ module.exports = function (RED) {
                 return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
                     .pipe(
                         catchError(err => {
-                            this.error(`while updating ${key} valve: ${err}`);
+                            node.error(`while updating ${key} valve: ${err}`);
                             return EMPTY;
                         })
                     );
