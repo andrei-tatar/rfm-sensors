@@ -126,17 +126,21 @@ module.exports = function (RED) {
         const requireHeating: Observable<boolean>[] = [];
         for (const roomKey of Object.keys(nodes.rooms)) {
             const room: RoomObservable = nodes.rooms[roomKey];
-            combineLatest(room.on$, room.humidity$, room.setpoint$, room.temperature$)
-                .pipe(debounceTime(0), takeUntil(close$))
-                .subscribe(([on, humidity, setpoint, temperature]) => this.send({
-                    topic: roomKey,
-                    payload: {
-                        mode: on ? 'heat' : 'off',
-                        setpoint,
-                        temperature,
-                        humidity,
-                    },
-                }));
+            combineLatest(room.on$,
+                room.humidity$.pipe(startWith(undefined)),
+                room.setpoint$.pipe(startWith(undefined)),
+                room.temperature$.pipe(startWith(undefined)),
+            ).pipe(debounceTime(0), takeUntil(close$))
+                .subscribe(([on, humidity, setpoint, temperature]) => {
+                    const payload: _.Dictionary<any> = { on: on ? 'heat' : 'off' };
+                    if (humidity !== void 0) { payload.humidity = humidity; }
+                    if (setpoint !== void 0) { payload.setpoint = setpoint; }
+                    if (temperature !== void 0) { payload.temperature = temperature; }
+                    this.send({
+                        topic: roomKey,
+                        payload,
+                    });
+                });
 
             const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
                 debounceTime(0),
