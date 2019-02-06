@@ -50,8 +50,8 @@ const defaultSettings = {
     enable: false,
     heaterAddress: 9,
     histerezis: .5,
-    valveOpenPercent: 80,
-    valveClosePercent: 20,
+    valveOpenPercent: 20,
+    valveClosePercent: 80,
     rooms: {
         'living': {
             on: false,
@@ -301,7 +301,7 @@ module.exports = function (RED) {
             const valvePoll$ = valve.data;
             valvePoll$.pipe(switchMap(_ => {
                 let valvePercent = Math.round(room.valveOpenPercent$.value);
-                valvePercent = Math.max(settings.valveClosePercent, Math.min(settings.valveOpenPercent, valvePercent));
+                valvePercent = Math.min(settings.valveClosePercent, Math.max(settings.valveOpenPercent, valvePercent));
                 const temperature = room.on$.value ? Math.round(room.setpoint$.value * 10) : 0;
                 return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
                     .pipe(
