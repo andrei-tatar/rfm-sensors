@@ -88,22 +88,22 @@ module.exports = function (RED) {
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
 
-        let settings = defaultSettings;
+        let useSettings = defaultSettings;
 
         const settingsFile = join(homedir(), 'thermostat-settings.json');
 
         const logger: Logger = RED.log;
         try {
-            settings = require(settingsFile);
+            useSettings = require(settingsFile);
         } catch (err) {
             logger.info('no settings file, using default settings');
         }
 
         const close$ = new Subject();
         const connected: Observable<boolean> = bridge.connected;
-        const nodes = createObservableNodes(this, settings, close$, bridge.create);
+        const nodes$ = createObservableNodes(useSettings, bridge.create);
 
-        combineLatest(connected, nodes.enable$, nodes.on$).pipe(
+        combineLatest(connected, nodes$.enable$, nodes$.on$).pipe(
             takeUntil(close$)
         ).subscribe(([isConnected, enable, on]) => {
             this.status(isConnected
@@ -111,7 +111,7 @@ module.exports = function (RED) {
                 : { fill: 'red', shape: 'ring', text: 'not connected' });
         });
 
-        nodes.settings$.pipe(
+        nodes$.settings$.pipe(
             skip(1),
             takeUntil(close$),
             map(s => JSON.stringify(s, null, 2)),
@@ -124,22 +124,20 @@ module.exports = function (RED) {
         ).subscribe();
 
         const requireHeating: Observable<boolean>[] = [];
-        for (const roomKey of Object.keys(nodes.rooms)) {
-            const room: RoomObservable = nodes.rooms[roomKey];
+        for (const roomKey of Object.keys(nodes$.rooms)) {
+            const room: RoomObservable = nodes$.rooms[roomKey];
 
-            room.on$.pipe(debounceTime(0), takeUntil(close$)).subscribe(on => this.send({ topic: roomKey, mode: on ? 'heat' : 'off' }));
-            room.setpoint$.pipe(debounceTime(0), takeUntil(close$)).subscribe(setpoint => this.send({ topic: roomKey, setpoint }));
-            combineLatest(room.temperature$, room.humidity$)
-                .pipe(debounceTime(0), takeUntil(close$))
-                .subscribe(([temperature, humidity]) => this.send({ topic: roomKey, temperature, humidity }));
+            sendChange(room.on$, roomKey, on => ({ mode: on ? 'heat' : 'off' }));
+            sendChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
+            sendChange(combineLatest(room.temperature$, room.humidity$), roomKey, ([temperature, humidity]) => ({ temperature, humidity }));
 
             const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
                 debounceTime(0),
                 scan<[number, number, boolean], boolean>((needsHeating, [temperature, setpoint, thermostatOn]) => {
                     if (!thermostatOn) { return false; }
 
-                    const setpointLow = setpoint - settings.histerezis;
-                    const setpointHigh = setpoint + settings.histerezis;
+                    const setpointLow = setpoint - useSettings.histerezis;
+                    const setpointHigh = setpoint + useSettings.histerezis;
                     if (needsHeating) {
                         if (temperature >= setpointHigh) { return false; }
                     } else {
@@ -154,16 +152,16 @@ module.exports = function (RED) {
                 refCount(),
             );
 
-            combineLatest(requireHeating$, nodes.heaterOn$, nodes.enable$).pipe(
+            combineLatest(requireHeating$, nodes$.heaterOn$, nodes$.enable$).pipe(
                 debounceTime(500),
                 takeUntil(close$),
             ).subscribe(([needsHeating, heaterOn, heaterEnabled]) => {
                 if (!heaterEnabled) {
-                    room.valveOpenPercent$.next(settings.valveOpenPercent);
+                    room.valveOpenPercent$.next(useSettings.valveOpenPercent);
                 } else if (heaterOn) {
                     room.valveOpenPercent$.next(needsHeating
-                        ? settings.valveOpenPercent
-                        : settings.valveClosePercent
+                        ? useSettings.valveOpenPercent
+                        : useSettings.valveClosePercent
                     );
                 }
             });
@@ -173,33 +171,21 @@ module.exports = function (RED) {
         combineLatest(...requireHeating).pipe(
             map(needHeating => needHeating.some(r => r)),
             takeUntil(close$),
-        ).subscribe(nodes.on$);
+        ).subscribe(nodes$.on$);
 
-        nodes.enable$.pipe(
-            debounceTime(0),
-            takeUntil(close$),
-        ).subscribe(enable => this.send({
-            topic: 'enable',
-            payload: enable,
-        }));
 
-        nodes.heaterOn$.pipe(
-            debounceTime(0),
-            takeUntil(close$),
-        ).subscribe(on => this.send({
-            topic: 'heater',
-            payload: on,
-        }));
+        sendChange(nodes$.enable$, 'enable');
+        sendChange(nodes$.heaterOn$, 'heater');
 
         this.on('input', msg => {
             if (typeof msg !== 'object') { return; }
 
             if (msg.topic === 'enable') {
-                nodes.enable$.next(!!msg.payload);
+                nodes$.enable$.next(!!msg.payload);
             }
 
-            if (msg.topic in nodes.rooms) {
-                const room: RoomObservable = nodes.rooms[msg.topic];
+            if (msg.topic in nodes$.rooms) {
+                const room: RoomObservable = nodes$.rooms[msg.topic];
                 if (typeof msg.payload.mode === 'string') {
                     room.on$.next(msg.payload.mode === 'on' || msg.payload.mode === 'heat');
                 }
@@ -213,118 +199,125 @@ module.exports = function (RED) {
             close$.next();
             close$.complete();
         });
-    }
 
-    RED.nodes.registerType('rfm-multithermostat', MultiThermostatNode);
-
-    function createObservableNodes<T extends HeatingSettings>(
-        this: unknown,
-        node,
-        settings: T,
-        stop$: Observable<any>,
-        create: (addr: number) => RadioNode,
-    ): ObservableNodes<T> {
-
-        const heater = create(settings.heaterAddress);
-        const settingsSubject = new Subject<T>();
-        const settings$ = settingsSubject.pipe(
-            startWith(settings),
-            debounceTime(0),
-            distinctUntilChanged((a, b) => isEqual(a, b)),
-            publishReplay(1),
-            refCount(),
-        );
-        const on$ = new BehaviorSubject(false);
-        const enable$ = new BehaviorSubject(settings.enable);
-        const nodes: ObservableNodes<T> = {
-            settings$,
-            on$,
-            enable$,
-            histerezis: settings.histerezis,
-            rooms: {} as any,
-            heaterOn$: combineLatest(on$, enable$).pipe(
+        function sendChange<T>(observable: Observable<T>, topic: string, getPayload: (value: T) => any = v => v) {
+            observable.pipe(
                 debounceTime(0),
-                map(([on, enable]) => on && enable),
-                distinctUntilChanged(),
-                publishReplay(1),
-                refCount(),
-            ),
-        };
+                takeUntil(close$),
+            ).subscribe(value => this.send({
+                topic,
+                payload: getPayload(value),
+            }));
+        }
 
-        nodes.enable$.pipe(skip(1), takeUntil(stop$)).subscribe(enable => {
-            settings = cloneDeep(settings);
-            settings.enable = enable;
-            settingsSubject.next(settings);
-        });
+        function createObservableNodes<T extends HeatingSettings>(
+            settings: T,
+            create: (addr: number) => RadioNode,
+        ): ObservableNodes<T> {
 
-        combineLatest(nodes.heaterOn$, interval(60000).pipe(startWith(0))).pipe(
-            switchMap(([on]) =>
-                heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
-                    node.error(`while updating heater state: ${err}`);
-                    return EMPTY;
-                }))
-            ),
-            takeUntil(stop$),
-        ).subscribe();
-
-        for (const key of Object.keys(settings.rooms)) {
-            const roomSettings = settings.rooms[key];
-
-            const thermostat = create(roomSettings.thermostatAddress);
-            const values$ = thermostat.data.pipe(
-                filter(msg => msg[0] === 0x01 && msg.length === 8),
-                map(msg => ({
-                    temperature: msg.readInt16BE(1) / 256, // deg C
-                    humidity: msg.readInt16BE(3) / 100, // %
-                    pressure: msg.readInt16BE(5) / 10, // hPa
-                    battery: msg.readUInt8(7) / 100 + 1, // volts
-                })),
+            const heater = create(settings.heaterAddress);
+            const settingsSubject = new Subject<T>();
+            const settings$ = settingsSubject.pipe(
+                startWith(settings),
+                debounceTime(0),
+                distinctUntilChanged((a, b) => isEqual(a, b)),
                 publishReplay(1),
                 refCount(),
             );
-
-            const thermostatBattery$ = values$.pipe(map(s => s.battery));
-            const temperature$ = values$.pipe(map(s => s.temperature));
-            const humidity$ = values$.pipe(map(s => s.humidity));
-
-            const valve = create(roomSettings.valveAddress);
-            const valveBattery$ = valve.data.pipe(filter(b => b.length === 2 && b[0] === 'B'.charCodeAt(0)), map(b => b[1] / 100 + 1));
-
-            const room: RoomObservable = {
-                on$: new BehaviorSubject(roomSettings.on),
-                valveOpenPercent$: new BehaviorSubject(settings.valveOpenPercent),
-                temperature$,
-                humidity$,
-                setpoint$: new BehaviorSubject<number>(roomSettings.setpoint),
-                valveBattery$,
-                thermostatBattery$,
+            const on$ = new BehaviorSubject(false);
+            const enable$ = new BehaviorSubject(settings.enable);
+            const nodes: ObservableNodes<T> = {
+                settings$,
+                on$,
+                enable$,
+                histerezis: settings.histerezis,
+                rooms: {} as any,
+                heaterOn$: combineLatest(on$, enable$).pipe(
+                    debounceTime(0),
+                    map(([on, enable]) => on && enable),
+                    distinctUntilChanged(),
+                    publishReplay(1),
+                    refCount(),
+                ),
             };
-            nodes.rooms[key] = room;
 
-            const valvePoll$ = valve.data;
-            valvePoll$.pipe(switchMap(_ => {
-                const valvePercent = Math.max(0, Math.min(100, Math.round(room.valveOpenPercent$.value)));
-                const temperature = room.on$.value ? Math.round(room.setpoint$.value * 10) : 0;
-                return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
-                    .pipe(
-                        catchError(err => {
-                            node.error(`while updating ${key} valve: ${err}`);
-                            return EMPTY;
-                        })
-                    );
-            }), takeUntil(stop$)).subscribe();
-
-            combineLatest(room.on$, room.setpoint$).pipe(
-                debounceTime(0),
-                takeUntil(stop$),
-            ).subscribe(([on, setpoint]) => {
+            nodes.enable$.pipe(skip(1), takeUntil(close$)).subscribe(enable => {
                 settings = cloneDeep(settings);
-                settings.rooms[key].on = on;
-                settings.rooms[key].setpoint = setpoint;
+                settings.enable = enable;
                 settingsSubject.next(settings);
             });
-        }
 
-        return nodes;
+            combineLatest(nodes.heaterOn$, interval(60000).pipe(startWith(0))).pipe(
+                switchMap(([on]) =>
+                    heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
+                        this.error(`while updating heater state: ${err}`);
+                        return EMPTY;
+                    }))
+                ),
+                takeUntil(close$),
+            ).subscribe();
+
+            for (const key of Object.keys(settings.rooms)) {
+                const roomSettings = settings.rooms[key];
+
+                const thermostat = create(roomSettings.thermostatAddress);
+                const values$ = thermostat.data.pipe(
+                    filter(msg => msg[0] === 0x01 && msg.length === 8),
+                    map(msg => ({
+                        temperature: msg.readInt16BE(1) / 256, // deg C
+                        humidity: msg.readInt16BE(3) / 100, // %
+                        pressure: msg.readInt16BE(5) / 10, // hPa
+                        battery: msg.readUInt8(7) / 100 + 1, // volts
+                    })),
+                    publishReplay(1),
+                    refCount(),
+                );
+
+                const thermostatBattery$ = values$.pipe(map(s => s.battery));
+                const temperature$ = values$.pipe(map(s => s.temperature));
+                const humidity$ = values$.pipe(map(s => s.humidity));
+
+                const valve = create(roomSettings.valveAddress);
+                const valveBattery$ = valve.data.pipe(filter(b => b.length === 2 && b[0] === 'B'.charCodeAt(0)), map(b => b[1] / 100 + 1));
+
+                const room: RoomObservable = {
+                    on$: new BehaviorSubject(roomSettings.on),
+                    valveOpenPercent$: new BehaviorSubject(settings.valveOpenPercent),
+                    temperature$,
+                    humidity$,
+                    setpoint$: new BehaviorSubject<number>(roomSettings.setpoint),
+                    valveBattery$,
+                    thermostatBattery$,
+                };
+                nodes.rooms[key] = room;
+
+                const valvePoll$ = valve.data;
+                valvePoll$.pipe(switchMap(_ => {
+                    const valvePercent = Math.max(0, Math.min(100, Math.round(room.valveOpenPercent$.value)));
+                    const temperature = room.on$.value ? Math.round(room.setpoint$.value * 10) : 0;
+                    return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
+                        .pipe(
+                            catchError(err => {
+                                this.error(`while updating ${key} valve: ${err}`);
+                                return EMPTY;
+                            })
+                        );
+                }), takeUntil(close$)).subscribe();
+
+                combineLatest(room.on$, room.setpoint$).pipe(
+                    debounceTime(0),
+                    takeUntil(close$),
+                ).subscribe(([on, setpoint]) => {
+                    settings = cloneDeep(settings);
+                    settings.rooms[key].on = on;
+                    settings.rooms[key].setpoint = setpoint;
+                    settingsSubject.next(settings);
+                });
+            }
+
+            return nodes;
+        }
     }
+
+    RED.nodes.registerType('rfm-multithermostat', MultiThermostatNode);
 };
