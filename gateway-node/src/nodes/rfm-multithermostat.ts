@@ -101,7 +101,8 @@ module.exports = function (RED) {
 
         const close$ = new Subject();
         const connected: Observable<boolean> = bridge.connected;
-        const nodes$ = createObservableNodes(useSettings, bridge.create);
+        const createNodeObservables: typeof createObservableNodes = createObservableNodes.bind(this);
+        const nodes$ = createNodeObservables(useSettings, bridge.create);
 
         combineLatest(connected, nodes$.enable$, nodes$.on$).pipe(
             takeUntil(close$)
@@ -123,13 +124,17 @@ module.exports = function (RED) {
             })),
         ).subscribe();
 
+        const sendNodeChange: typeof sendChange = sendChange.bind(this);
+
         const requireHeating: Observable<boolean>[] = [];
         for (const roomKey of Object.keys(nodes$.rooms)) {
             const room: RoomObservable = nodes$.rooms[roomKey];
 
-            sendChange(room.on$, roomKey, on => ({ mode: on ? 'heat' : 'off' }));
-            sendChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
-            sendChange(combineLatest(room.temperature$, room.humidity$), roomKey, ([temperature, humidity]) => ({ temperature, humidity }));
+            sendNodeChange(room.on$, roomKey, on => ({ mode: on ? 'heat' : 'off' }));
+            sendNodeChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
+            sendNodeChange(combineLatest(room.temperature$, room.humidity$), roomKey,
+                ([temperature, humidity]) => ({ temperature, humidity })
+            );
 
             const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
                 debounceTime(0),
@@ -173,9 +178,8 @@ module.exports = function (RED) {
             takeUntil(close$),
         ).subscribe(nodes$.on$);
 
-
-        sendChange(nodes$.enable$, 'enable');
-        sendChange(nodes$.heaterOn$, 'heater');
+        sendNodeChange(nodes$.enable$, 'enable');
+        sendNodeChange(nodes$.heaterOn$, 'heater');
 
         this.on('input', msg => {
             if (typeof msg !== 'object') { return; }
