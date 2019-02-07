@@ -135,6 +135,8 @@ module.exports = function (RED) {
             sendNodeChange(combineLatest(room.temperature$, room.humidity$), roomKey,
                 ([temperature, humidity]) => ({ temperature, humidity })
             );
+            sendNodeChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
+            sendNodeChange(room.valveBattery$, `battery:valve-${roomKey}`);
 
             const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
                 debounceTime(0),
