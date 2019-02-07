@@ -4,8 +4,8 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { BehaviorSubject, combineLatest, EMPTY, interval, Observable, Subject } from 'rxjs';
 import {
-    catchError, debounceTime, distinctUntilChanged, filter,
-    map, publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil, tap
+    catchError, debounceTime, distinctUntilChanged, filter, map,
+    publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 
@@ -49,9 +49,9 @@ interface RoomObservable {
 const defaultSettings = {
     enable: false,
     heaterAddress: 9,
-    histerezis: .5,
-    valveOpenPercent: 20,
-    valveClosePercent: 80,
+    histerezis: .3,
+    valveOpenPercent: 0,
+    valveClosePercent: 85,
     rooms: {
         'living': {
             on: false,
@@ -130,19 +130,21 @@ module.exports = function (RED) {
                 room.setpoint$,
                 room.humidity$.pipe(startWith(undefined)),
                 room.temperature$.pipe(startWith(undefined)),
-            ).pipe(debounceTime(0), takeUntil(close$))
-                .subscribe(([on, setpoint, humidity, temperature]) => {
-                    const payload: _.Dictionary<any> = {
-                        mode: on ? 'heat' : 'off',
-                        setpoint,
-                    };
-                    if (humidity !== void 0) { payload.humidity = humidity; }
-                    if (temperature !== void 0) { payload.temperature = temperature; }
-                    this.send({
-                        topic: roomKey,
-                        payload,
-                    });
+            ).pipe(
+                debounceTime(0),
+                takeUntil(close$),
+            ).subscribe(([on, setpoint, humidity, temperature]) => {
+                const payload: _.Dictionary<any> = {
+                    mode: on ? 'heat' : 'off',
+                    setpoint,
+                };
+                if (humidity !== void 0) { payload.humidity = humidity; }
+                if (temperature !== void 0) { payload.temperature = temperature; }
+                this.send({
+                    topic: roomKey,
+                    payload,
                 });
+            });
 
             const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
                 debounceTime(0),
@@ -161,13 +163,23 @@ module.exports = function (RED) {
                 }, false),
                 startWith(false),
                 distinctUntilChanged(),
-                tap(needsHeating =>
+                publishReplay(1),
+                refCount(),
+            );
+
+            combineLatest(requireHeating$, nodes.heaterOn$, nodes.enable$).pipe(
+                debounceTime(500),
+                takeUntil(close$),
+            ).subscribe(([needsHeating, heaterOn, heaterEnabled]) => {
+                if (!heaterEnabled) {
+                    room.valveOpenPercent$.next(settings.valveOpenPercent);
+                } else if (heaterOn) {
                     room.valveOpenPercent$.next(needsHeating
                         ? settings.valveOpenPercent
                         : settings.valveClosePercent
-                    )
-                ),
-            );
+                    );
+                }
+            });
 
             requireHeating.push(requireHeating$);
         }
@@ -176,17 +188,21 @@ module.exports = function (RED) {
             takeUntil(close$),
         ).subscribe(nodes.on$);
 
-        nodes.enable$.pipe(takeUntil(close$))
-            .subscribe(enable => this.send({
-                topic: 'enable',
-                payload: enable,
-            }));
+        nodes.enable$.pipe(
+            debounceTime(0),
+            takeUntil(close$),
+        ).subscribe(enable => this.send({
+            topic: 'enable',
+            payload: enable,
+        }));
 
-        nodes.heaterOn$.pipe(takeUntil(close$))
-            .subscribe(on => this.send({
-                topic: 'heater',
-                payload: on,
-            }));
+        nodes.heaterOn$.pipe(
+            debounceTime(0),
+            takeUntil(close$),
+        ).subscribe(on => this.send({
+            topic: 'heater',
+            payload: on,
+        }));
 
         this.on('input', msg => {
             if (typeof msg !== 'object') { return; }
@@ -289,7 +305,7 @@ module.exports = function (RED) {
 
             const room: RoomObservable = {
                 on$: new BehaviorSubject(roomSettings.on),
-                valveOpenPercent$: new BehaviorSubject(settings.valveClosePercent),
+                valveOpenPercent$: new BehaviorSubject(settings.valveOpenPercent),
                 temperature$,
                 humidity$,
                 setpoint$: new BehaviorSubject<number>(roomSettings.setpoint),
@@ -300,8 +316,7 @@ module.exports = function (RED) {
 
             const valvePoll$ = valve.data;
             valvePoll$.pipe(switchMap(_ => {
-                let valvePercent = Math.round(room.valveOpenPercent$.value);
-                valvePercent = Math.min(settings.valveClosePercent, Math.max(settings.valveOpenPercent, valvePercent));
+                const valvePercent = Math.max(0, Math.min(100, Math.round(room.valveOpenPercent$.value)));
                 const temperature = room.on$.value ? Math.round(room.setpoint$.value * 10) : 0;
                 return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
                     .pipe(
@@ -312,13 +327,15 @@ module.exports = function (RED) {
                     );
             }), takeUntil(stop$)).subscribe();
 
-            combineLatest(room.on$, room.setpoint$).pipe(debounceTime(0), takeUntil(stop$))
-                .subscribe(([on, setpoint]) => {
-                    settings = cloneDeep(settings);
-                    settings.rooms[key].on = on;
-                    settings.rooms[key].setpoint = setpoint;
-                    settingsSubject.next(settings);
-                });
+            combineLatest(room.on$, room.setpoint$).pipe(
+                debounceTime(0),
+                takeUntil(stop$),
+            ).subscribe(([on, setpoint]) => {
+                settings = cloneDeep(settings);
+                settings.rooms[key].on = on;
+                settings.rooms[key].setpoint = setpoint;
+                settingsSubject.next(settings);
+            });
         }
 
         return nodes;
