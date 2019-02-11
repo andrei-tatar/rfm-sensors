@@ -30,13 +30,19 @@ bool commLoop()
 
     if (rtcTime() >= nextCheck)
     {
-        static int16_t lastTemperature = 0xFFFF;
-        static int16_t lastHumidity = 0xFFFF;
-        static int16_t lastPressure = 0xFFFF;
+        static int16_t lastTemperature = 0;
+        static int16_t lastHumidity = 0;
+        static int16_t lastPressure = 0;
 
         int16_t temperature = bme.readTemperature() * 256;
         int16_t humidity = bme.readHumidity() * 100;
         int16_t pressure = bme.readPressure() / 10;
+
+        if (temperature == 0)
+        {
+            // TODO: sometimes temperature is sent as 0
+            return false;
+        }
 
         if (abs(temperature - lastTemperature) > 64 ||
             abs(humidity - lastHumidity) > 200 ||
