@@ -24,6 +24,7 @@ typedef struct
 } tFont;
 
 extern const tImage img_error;
+extern const tImage img_sync;
 extern const tFont roboto_big;
 extern const tFont roboto_medium;
 
