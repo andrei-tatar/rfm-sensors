@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data type="font" name="roboto_big">
+    <family>Roboto Light</family>
+    <size>48</size>
+    <style>Light</style>
+    <widthType>proportional</widthType>
+    <antialiasing>false</antialiasing>
+    <string>0123456789Of</string>
+    <converted>D:/Proiecte/rfm-sensors/sensor-thermostat/src/res/roboto_big.c</converted>
+    <chars>
+        <char character="0" code="0030">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAmUlEQVRIie2WURKAIAhEo+n+V7a/Mly2zbSZZuAz2CeCJlZKWYbaOhY3hbhxt5m1H3mhLHJDlsLFxBrnAogrJB4asjsS4zuj4GpvWxzca+WQRjEX4m03oDnVJydcv5cw8iT2bbnV/uFeJzGJSUziE+KbAajWghz1Xy+MnFxH8goTc+XqzzFa1RPFNMno8ckkpeQY4RiRcLlkB+ucVzHpeN4yAAAAAElFTkSuQmCC</picture>
+        </char>
+        <char character="1" code="0031">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAU0lEQVRIie3SOwoAIAxEQVe8/5XX2h+JGhBkreMkxQPJFPpyLPdaBADAHCseyL/VEHetpThCJP16I3bfzsKa3HhZaCOG1P5Z4RIlSpQoUaLEb8QKPykPXIBZ29gAAAAASUVORK5CYII=</picture>
+        </char>
+        <char character="2" code="0032">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAvElEQVRIidXW3Q6AIAgG0Gi9/yvbRVsZwsePtJmXameJQFFrbSsdey33iXiANSIS53GgSFzWLI8riD2HV8UN/NT3A9orXPPgEK+bMbnx1Ua64K4Zuo8LzpzXtv0hw7k4X+ZP9lS1jCXjyA6XF7WySYogedeII66usGgWa0z0dOJkHEE5BERnc/KK/l7nEkOt0xajndgQo5whenIlIOKvdkbMcaqYCB8SZzhBnOS4OM9t/b9ZLlf6cVH1PfwEF3RjO869ho8AAAAASUVORK5CYII=</picture>
+        </char>
+        <char character="3" code="0033">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAtUlEQVRIidWWSw6AMAhEi/H+V64bU3/DgDgmyrLgK78i1ntvUpm0uFeIM1eb2fWQJ8qgGoKSXEDc47gWG5yOxgdBaP6tE7QLW4oY1Gs9oKc8bMS8g1z+1eGqB/6HqL9E9LqtSCTNG0wzwoK4mOiNNf27JgMUT9w8K56PBbSm1i0zzVTyiAjd/JiPUNYOV/0S2vDRK1ydKJRHRJirjagK/ODjLahXzNubVGhQ3/bc+/I7GAcNWQAeMHIuxG5legAAAABJRU5ErkJggg==</picture>
+        </char>
+        <char character="4" code="0034">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABwAAAAlCAIAAADeGh6mAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAkUlEQVRIie3WsQ6AIAyE4db4/q+MA4kkBNtreyQO/JOLXw4W1daasLvo4i70Tryjqv3h6+rCS1/R6Ad3isyMoe5VZlA8FMVnomhIRNFoPhqd6aMJ0UdzWWhupoWmRQuttEYrM9doUVyj9Wa0PnNGKeKMshooa+ZAiaKIaFfAj49b17bcqebO209G+5lAOuhByT247TlHBBziNwAAAABJRU5ErkJggg==</picture>
+        </char>
+        <char character="5" code="0035">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAr0lEQVRIie2W2w6AIAiGo/X+r2wXbqwQfsRD0y0ulT45+RullI6hdo7FTSFe6ioRRUFcva9iFMeGbIfOKMSGtjjETvuJk4nNmoTuTDZ1mMB5iAgGM2+pXCpXBSjqIGN8elup5XUrA9kZpridYQeBVrIOGeMmKu56xLKa68W4J/F1Z8rharDeGJ0JH/KfpsfY88CaSlEDVeuO6oih1q6uPVglseIiNXMTr30VarjgqxtwoFc/5oPjJwAAAABJRU5ErkJggg==</picture>
+        </char>
+        <char character="6" code="0036">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAw0lEQVRIic2V2w7EIAhES9P//2X3oYlx6TCA6G7nzWBORrlJa+1YqnMtbgvxSt0WkfEIfyxEVCAuhxgxlSCOuHhJmMSOy5YXzvU0DhMrOEwsShOLBgGxri9i3aAmLpHfhbAFySMAsd8m7XyHEpOC91+PigiIEkc8P1Yazcy46basYOLfqgfaBMTidnzfLnw+6H0ef0ucS/Gz09iemdPmf4zMsVFwWGiPWajj0bLAoyqlYGQe4YmLo6Ro3IdjN24ZZjfXB5rraUfqAdsPAAAAAElFTkSuQmCC</picture>
+        </char>
+        <char character="7" code="0037">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAoUlEQVRIic2WQQ7AIAgES9P/f9kemhhTFZYFW/fibTICpUop5UjNmYtbQryeQ0SCoFq9ZY50f/rL5Ti2QiHisPoJjq+K8cTZeEQd+5aSRGV+9/gKq+Bwijdw1AUZohmSqOwBHxFZeoyjvqgcRHAr/9cZc2jcRDwQERdEia7YRJcgRPQGJeK/X4NIvDW+vbW3JzaRy5TICWpEOmMiLTglRnIDXEQzSyxGoJcAAAAASUVORK5CYII=</picture>
+        </char>
+        <char character="8" code="0038">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAy0lEQVRIic2W0RaDMAhDx87+/5e7N4c0hFSpZzwWvKalRG2M8WqNdy9uC/HD02Y2L/KDMpiGIBENiAEXCngWEP0DZHekLO0MPyyfDapPxCOnXNKs5pH7qE8RrOzR6I+yh+jFAqJ4vbPKzZ05xCsys6uWauRQko1EMgxwvZ5rUSNkYY33o3Cz0j0X3KycRanX17yHuVlL/IhLAkNlv1P4uEucN8Rm5lpEom5lKnE1ZgX/1xlGXLLbUJl+Z1o8fL/36BrT9xW/lwmaPPUF5LGKJStcgZwAAAAASUVORK5CYII=</picture>
+        </char>
+        <char character="9" code="0039">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABsAAAAlCAIAAAA8xgXfAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAA1ElEQVRIidWW2w7EIAhES7P//8v0wcSlOsBoa2J5MoongFwUVT1elfNd3BLiLz4WkWYnjZJAjR7Ui4cGRIsbPT36OKYX7CZ0xX2ZIF4x9Easx2n4AwVgI5nzVa0x809k3peR9TUzVOZU9syJjdgXOsV64vMc2szrpFN4VTUq2EYG6unciGTBiEjBUTVjfYdWwI5n12ByqWq95rkWeINnYbkAcelUiKbr3Hdjswwv0rgyT6TycQLXx3qPOMZjPfmbeSwPxxKbR4jzFBOD3pOmPes1Xz8XoVNpTB8gYJUAAAAASUVORK5CYII=</picture>
+        </char>
+        <char character="O" code="004f">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAACAAAAAlCAIAAACs1XwQAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAAlklEQVRIie2WUQ7AIAhDZdn9r+x+DULXQCRZBp8G+qi6ocw5x8m4jqpXAG4mSUTMdWZ7BSd50jzGBSjpPe01AQHWYt6iLQVa428wKNG3KKC+Ju9nVvsdxNpXJcpEoYNM+6pwNfH9f1EDGtCABvwMAOYqGeZEqd2ijAlvIJYfcswEmOfZpyNWdwHj9OPXUzEj+HxnMEztAyuSaSlh5irTAAAAAElFTkSuQmCC</picture>
+        </char>
+        <char character="f" code="0066">
+            <picture format="png">iVBORw0KGgoAAAANSUhEUgAAABAAAAAlCAIAAADEJv4oAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAABJ0AAASdAHeZh94AAAASklEQVQ4jWP8//8/A27AyMiIJsJCvFJ8GpBVozmBCY97MFVj1wA3Hqv3CNgwqgEC/v//jz91oCkm2QZGTONHI25Uw6iGUQ0DqgEA79gbP25XawcAAAAASUVORK5CYII=</picture>
+        </char>
+    </chars>
+</data>
