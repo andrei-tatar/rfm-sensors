@@ -253,7 +253,10 @@ module.exports = function (RED) {
                 settingsSubject.next(settings);
             });
 
-            combineLatest(nodes.heaterOn$, interval(60000).pipe(startWith(0))).pipe(
+            combineLatest(
+                nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
+                interval(60000).pipe(startWith(0))
+            ).pipe(
                 switchMap(([on]) =>
                     heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
                         this.error(`while updating heater state: ${err}`);
@@ -309,6 +312,31 @@ module.exports = function (RED) {
                             })
                         );
                 }), takeUntil(close$)).subscribe();
+
+                const thermostatPoll$ = thermostat.data.pipe(filter(m => m.length === 1 && m[0] === 2));
+                thermostatPoll$.pipe(switchMap(_ => {
+                    const response = Buffer.alloc(3);
+                    const setpoint = Math.max(0, Math.min(255, Math.round(room.setpoint$.value * 10) - 100));
+                    let offset = response.writeUInt8(2, 0);
+                    offset = response.writeUInt8(room.on$.value ? 1 : 0, offset);
+                    offset = response.writeUInt8(setpoint, offset);
+                    return thermostat.send(Buffer.from([])).pipe(
+                        catchError(err => {
+                            this.error(`while responding to thermostat ${key}: ${err}`);
+                            return EMPTY;
+                        })
+                    );
+                }), takeUntil(close$)).subscribe();
+
+                const thermostatCommand$ = thermostat.data.pipe(filter(m => m.length === 3 && m[0] === 3));
+                thermostatCommand$.pipe(takeUntil(close$)).subscribe(cmd => {
+                    const on = (cmd.readUInt8(1) & 1) === 1;
+                    room.on$.next(on);
+                    if (on) {
+                        const setpoint = cmd.readUInt8(2);
+                        room.setpoint$.next((setpoint + 100) / 10);
+                    }
+                });
 
                 combineLatest(room.on$, room.setpoint$).pipe(
                     debounceTime(0),
