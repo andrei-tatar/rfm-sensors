@@ -320,7 +320,7 @@ module.exports = function (RED) {
                     let offset = response.writeUInt8(2, 0);
                     offset = response.writeUInt8(room.on$.value ? 1 : 0, offset);
                     offset = response.writeUInt8(setpoint, offset);
-                    return thermostat.send(Buffer.from([])).pipe(
+                    return thermostat.send(response).pipe(
                         catchError(err => {
                             this.error(`while responding to thermostat ${key}: ${err}`);
                             return EMPTY;
