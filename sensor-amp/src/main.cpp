@@ -124,7 +124,7 @@ void setVolume(uint8_t vol)
     suspendIr();
     uint8_t current = getVolume();
     int16_t delta = (int16_t)vol - current;
-    if (abs(delta) > 2)
+    if (abs(delta) > 1)
     {
         uint32_t now = millis();
         uint32_t lastSend = now;
@@ -133,7 +133,7 @@ void setVolume(uint8_t vol)
                     ? IR_VOL_UP
                     : IR_VOL_DOWN);
 
-        while (abs((int16_t)vol - current) > 2)
+        while (abs((int16_t)vol - current) > 1)
         {
             current = getVolume();
             now = millis();
@@ -201,7 +201,7 @@ void loop()
         }
 
         if (forceSend ||
-            abs((int16_t)volume - (int16_t)lastVol) > 2 ||
+            volume != lastVol ||
             pwr != lastPwr || channel != lastChannel)
         {
             forceSend = false;
