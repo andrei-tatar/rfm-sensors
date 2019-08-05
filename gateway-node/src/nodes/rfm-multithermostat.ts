@@ -37,7 +37,8 @@ interface ObservableNodes<T extends HeatingSettings> {
 }
 
 interface RoomObservable {
-    on$: BehaviorSubject<boolean>;
+    heat$: BehaviorSubject<boolean>;
+    cool$: BehaviorSubject<boolean>;
     valveOpenPercent$: BehaviorSubject<number>;
     temperature$: Observable<number>;
     humidity$: Observable<number>;
@@ -130,7 +131,13 @@ module.exports = function (RED) {
         for (const roomKey of Object.keys(nodes$.rooms)) {
             const room: RoomObservable = nodes$.rooms[roomKey];
 
-            sendNodeChange(room.on$, roomKey, on => ({ mode: on ? 'heat' : 'off' }));
+            sendNodeChange(
+                combineLatest(room.heat$, room.cool$),
+                roomKey,
+                ([heat, cool]) => ({
+                    mode: heat ? 'heat' : (cool ? 'cool' : 'off'),
+                })
+            );
             sendNodeChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
             sendNodeChange(combineLatest(room.temperature$, room.humidity$), roomKey,
                 ([temperature, humidity]) => ({ temperature, humidity })
@@ -138,7 +145,7 @@ module.exports = function (RED) {
             sendNodeChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
             sendNodeChange(room.valveBattery$, `battery:valve-${roomKey}`);
 
-            const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.on$).pipe(
+            const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.heat$).pipe(
                 debounceTime(0),
                 scan<[number, number, boolean], boolean>((needsHeating, [temperature, setpoint, thermostatOn]) => {
                     if (!thermostatOn) { return false; }
@@ -193,7 +200,8 @@ module.exports = function (RED) {
             if (msg.topic in nodes$.rooms) {
                 const room: RoomObservable = nodes$.rooms[msg.topic];
                 if (typeof msg.payload.mode === 'string') {
-                    room.on$.next(msg.payload.mode === 'on' || msg.payload.mode === 'heat');
+                    room.heat$.next(msg.payload.mode === 'on' || msg.payload.mode === 'heat');
+                    room.cool$.next(msg.payload.mode === 'cool');
                 }
                 if (typeof msg.payload.setpoint === 'number') {
                     room.setpoint$.next(msg.payload.setpoint);
@@ -290,7 +298,8 @@ module.exports = function (RED) {
                 const valveBattery$ = valve.data.pipe(filter(b => b.length === 2 && b[0] === 'B'.charCodeAt(0)), map(b => b[1] / 100 + 1));
 
                 const room: RoomObservable = {
-                    on$: new BehaviorSubject(roomSettings.on),
+                    heat$: new BehaviorSubject(roomSettings.on),
+                    cool$: new BehaviorSubject(false),
                     valveOpenPercent$: new BehaviorSubject(settings.valveOpenPercent),
                     temperature$,
                     humidity$,
@@ -298,12 +307,12 @@ module.exports = function (RED) {
                     valveBattery$,
                     thermostatBattery$,
                 };
-                nodes.rooms[key] = room;
+                nodes.rooms[key as keyof T['rooms']] = room;
 
                 const valvePoll$ = valve.data;
                 valvePoll$.pipe(switchMap(_ => {
                     const valvePercent = Math.max(0, Math.min(100, Math.round(room.valveOpenPercent$.value)));
-                    const temperature = room.on$.value ? Math.round(room.setpoint$.value * 10) : 0;
+                    const temperature = room.heat$.value ? Math.round(room.setpoint$.value * 10) : 0;
                     return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
                         .pipe(
                             catchError(err => {
@@ -318,7 +327,7 @@ module.exports = function (RED) {
                     const response = Buffer.alloc(3);
                     const setpoint = Math.max(0, Math.min(255, Math.round(room.setpoint$.value * 10) - 100));
                     let offset = response.writeUInt8(2, 0);
-                    offset = response.writeUInt8(room.on$.value ? 1 : 0, offset);
+                    offset = response.writeUInt8(room.heat$.value ? 1 : 0, offset);
                     offset = response.writeUInt8(setpoint, offset);
                     return thermostat.send(response).pipe(
                         catchError(err => {
@@ -331,14 +340,14 @@ module.exports = function (RED) {
                 const thermostatCommand$ = thermostat.data.pipe(filter(m => m.length === 3 && m[0] === 3));
                 thermostatCommand$.pipe(takeUntil(close$)).subscribe(cmd => {
                     const on = (cmd.readUInt8(1) & 1) === 1;
-                    room.on$.next(on);
+                    room.heat$.next(on);
                     if (on) {
                         const setpoint = cmd.readUInt8(2);
                         room.setpoint$.next((setpoint + 100) / 10);
                     }
                 });
 
-                combineLatest(room.on$, room.setpoint$).pipe(
+                combineLatest(room.heat$, room.setpoint$).pipe(
                     debounceTime(0),
                     takeUntil(close$),
                 ).subscribe(([on, setpoint]) => {
