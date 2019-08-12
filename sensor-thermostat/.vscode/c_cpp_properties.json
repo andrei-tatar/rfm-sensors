@@ -1,21 +1,23 @@
 {
-    "!!! WARNING !!!": "PLEASE DO NOT MODIFY THIS FILE! USE https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags",
     "configurations": [
+        {
+            "name": "!!! WARNING !!! AUTO-GENERATED FILE, PLEASE DO NOT MODIFY IT AND USE https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags"
+        },
         {
             "name": "Win32",
             "includePath": [
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/Adafruit_BME280",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/sensor",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/radio",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/SPIFlash",
+                "C:/Users/Andrei/.platformio/lib/U8g2_ID942/src",
+                "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/Wire/src",
+                "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SPI/src",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/cores/arduino",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/variants/eightanaloginputs",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/Adafruit_BME280",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/SPIFlash",
-                "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SPI/src",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/U8g2_ID942/src",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/radio",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/sensor",
-                "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/Wire/src",
-                "C:/Users/Andrei/.platformio/lib/U8g2_ID942/src",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/EEPROM/src",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/HID/src",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SoftwareSerial/src",
@@ -41,26 +43,24 @@
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/Temboo/src",
                 "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/WiFi/src",
                 "C:/Users/Andrei/.platformio/packages/tool-unity",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/include",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": "${workspaceRoot}/.vscode/.browse.c_cpp.db",
                 "path": [
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/Adafruit_BME280",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/sensor",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/radio",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/SPIFlash",
+                    "C:/Users/Andrei/.platformio/lib/U8g2_ID942/src",
+                    "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/Wire/src",
+                    "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SPI/src",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/cores/arduino",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/variants/eightanaloginputs",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/Adafruit_BME280",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/SPIFlash",
-                    "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SPI/src",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/U8g2_ID942/src",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/radio",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/.piolibdeps/sensor",
-                    "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/Wire/src",
-                    "C:/Users/Andrei/.platformio/lib/U8g2_ID942/src",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/EEPROM/src",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/HID/src",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/__cores__/arduino/SoftwareSerial/src",
@@ -86,13 +86,11 @@
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/Temboo/src",
                     "C:/Users/Andrei/.platformio/packages/framework-arduinoavr/libraries/WiFi/src",
                     "C:/Users/Andrei/.platformio/packages/tool-unity",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/include",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
                     ""
                 ]
             },
             "defines": [
-                "PLATFORMIO=30604",
+                "PLATFORMIO=40000",
                 "ARDUINO_AVR_PRO",
                 "SENSOR_NO_SLEEP",
                 "F_CPU=8000000L",
@@ -104,7 +102,7 @@
             "intelliSenseMode": "clang-x64",
             "cStandard": "c11",
             "cppStandard": "c++11",
-            "compilerPath": "C:/Users/Andrei/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe -mmcu=atmega328p"
+            "compilerPath": "\"C:/Users/Andrei/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe\" -mmcu=atmega328p"
         }
     ],
     "version": 4
