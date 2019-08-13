@@ -1,6 +1,6 @@
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval } from 'rxjs';
-import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operators';
+import { combineLatest, concat, EMPTY, interval, of } from 'rxjs';
+import { catchError, filter, ignoreElements, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
 import { PackageLayer } from '../communication/package';
 import { getBaseLayer } from '../util';
@@ -62,7 +62,19 @@ module.exports = function (RED) {
                 ).subscribe();
         });
 
-        const subscription = combineLatest(base.connected,
+        const connected$ = base.connected.pipe(
+            switchMap(connected => {
+                if (connected) {
+                    return concat(
+                        pckg.send(Buffer.from([0x01])).pipe(ignoreElements()),
+                        of(connected),
+                    );
+                }
+                return of(connected);
+            }),
+        );
+
+        const subscription = combineLatest(connected$,
             state.pipe(startWith(null)),
             interval(30000).pipe(startWith(0))
         ).subscribe(([connected, st]) => {
