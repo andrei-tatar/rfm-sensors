@@ -72,12 +72,7 @@ module.exports = function (RED) {
                 : { fill: 'red', shape: 'ring', text: 'not connected' });
         });
 
-        this.on('close', () => {
-            subscription.unsubscribe();
-            base.close();
-        });
-
-        base.connect();
+        this.on('close', () => subscription.unsubscribe());
     }
 
     RED.nodes.registerType('rfm-amp', AmpNode);

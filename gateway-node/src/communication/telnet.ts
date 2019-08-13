@@ -1,17 +1,15 @@
 import * as net from 'net';
 import { BehaviorSubject, merge, Observable, of, Subject, throwError, timer } from 'rxjs';
-import { catchError, concatMap, distinctUntilChanged, first, map, shareReplay, switchMap } from 'rxjs/operators';
+import { catchError, concatMap, distinctUntilChanged, first, map, publishReplay, refCount, switchMap } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
 export class Telnet implements ConnectableLayer<Buffer> {
     private readonly _data = new Subject<Buffer>();
     private socket: net.Socket;
-    private reconnectTimeout: NodeJS.Timer;
-    private _connected = new BehaviorSubject(false);
 
     readonly data = this._data.asObservable();
-    readonly connected = this._connected
+    readonly connected = this.connect()
         .pipe(
             distinctUntilChanged(),
             switchMap(isConnected => {
@@ -32,7 +30,8 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 return fwd;
             }),
             distinctUntilChanged(),
-            shareReplay(1)
+            publishReplay(1),
+            refCount(),
         );
 
     constructor(
@@ -43,40 +42,42 @@ export class Telnet implements ConnectableLayer<Buffer> {
     ) {
     }
 
-    connect() {
-        if (this.socket) {
-            this.socket.destroy();
-            this.socket = null;
-        }
+    private connect() {
+        return new Observable<boolean>(observer => {
+            if (this.socket) {
+                this.socket.destroy();
+                this.socket = null;
+            }
 
-        this.socket = new net.Socket();
-        this.socket.on('data', data => this._data.next(data));
-        this.socket.once('disconnect', () => {
-            this._connected.next(false);
-            this.logger.warn('telnet: disconnected from server');
-            this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
-        });
-        this.socket.once('error', err => {
-            this._connected.next(false);
-            this.logger.warn(`telnet: error: ${err.message}`);
-            this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
+            let reconnectTimeout: NodeJS.Timer;
+            this.socket = new net.Socket();
+            this.socket.on('data', data => this._data.next(data));
+            this.socket.once('disconnect', () => {
+                observer.next(false);
+                this.logger.warn('telnet: disconnected from server');
+                reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
+            });
+            this.socket.once('error', err => {
+                observer.next(false);
+                this.logger.warn(`telnet: error: ${err.message}`);
+                reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
+            });
+
+            this.logger.debug('telnet: connecting');
+            this.socket.connect(this.port, this.host, async () => {
+                this.logger.debug('telnet: connected');
+                observer.next(true);
+            });
+
+            return () => {
+                clearTimeout(reconnectTimeout);
+                if (this.socket) {
+                    this.socket.destroy();
+                    this.socket = null;
+                }
+            };
         });
 
-        this.logger.debug('telnet: connecting');
-        this.socket.connect(this.port, this.host, async () => {
-            this.logger.debug('telnet: connected');
-            this._connected.next(true);
-        });
-    }
-
-    close() {
-        this._connected.complete();
-        this._data.complete();
-        clearTimeout(this.reconnectTimeout);
-        if (this.socket) {
-            this.socket.destroy();
-            this.socket = null;
-        }
     }
 
     send(data: Buffer): Observable<void> {
@@ -84,7 +85,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
             return throwError(new Error('telnet: not connected'));
         }
 
-        return this._connected.pipe(
+        return this.connected.pipe(
             first(),
             concatMap<boolean, Promise<void>>(c => {
                 if (!c) { throw new Error('telnet: not connected'); }

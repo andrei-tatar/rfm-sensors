@@ -7,6 +7,4 @@ export interface MessageLayer<T = any> {
 
 export interface ConnectableLayer<T = any> extends MessageLayer<T> {
     readonly connected: Observable<boolean>;
-    connect();
-    close();
 }
