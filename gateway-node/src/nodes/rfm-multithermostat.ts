@@ -132,7 +132,7 @@ module.exports = function (RED) {
             const room: RoomObservable = nodes$.rooms[roomKey];
 
             sendNodeChange(
-                combineLatest(room.heat$, room.cool$),
+                combineLatest(room.heat$, room.cool$).pipe(debounceTime(0)),
                 roomKey,
                 ([heat, cool]) => ({
                     mode: heat ? 'heat' : (cool ? 'cool' : 'off'),
