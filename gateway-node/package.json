@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "intel-hex": "git+https://github.com/andrei-tatar/intel-hex.js.git",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.15",
     "moment": "^2.22.2",
     "rxjs": "^6.4.0",
     "serialport": "^7.0.2",
