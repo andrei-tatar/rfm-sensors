@@ -17,7 +17,8 @@ interface HeatingSettings {
     valveClosePercent: number;
     rooms: {
         [roomName: string]: {
-            on: boolean;
+            heat: boolean;
+            cool: boolean;
             setpoint: number;
             thermostatAddress: number;
             valveAddress: number;
@@ -55,25 +56,29 @@ const defaultSettings = {
     valveClosePercent: 85,
     rooms: {
         'living': {
-            on: false,
+            heat: false,
+            cool: false,
             setpoint: 22,
             thermostatAddress: 30,
             valveAddress: 4,
         },
         'office': {
-            on: false,
+            heat: false,
+            cool: false,
             setpoint: 22,
             thermostatAddress: 31,
             valveAddress: 7,
         },
         'bedroom': {
-            on: false,
+            heat: false,
+            cool: false,
             setpoint: 22,
             thermostatAddress: 32,
             valveAddress: 5,
         },
         'kids': {
-            on: false,
+            heat: false,
+            cool: false,
             setpoint: 22,
             thermostatAddress: 33,
             valveAddress: 6,
@@ -298,8 +303,8 @@ module.exports = function (RED) {
                 const valveBattery$ = valve.data.pipe(filter(b => b.length === 2 && b[0] === 'B'.charCodeAt(0)), map(b => b[1] / 100 + 1));
 
                 const room: RoomObservable = {
-                    heat$: new BehaviorSubject(roomSettings.on),
-                    cool$: new BehaviorSubject(false),
+                    heat$: new BehaviorSubject(roomSettings.heat),
+                    cool$: new BehaviorSubject(roomSettings.cool),
                     valveOpenPercent$: new BehaviorSubject(settings.valveOpenPercent),
                     temperature$,
                     humidity$,
@@ -342,17 +347,19 @@ module.exports = function (RED) {
                     const on = (cmd.readUInt8(1) & 1) === 1;
                     room.heat$.next(on);
                     if (on) {
+                        room.cool$.next(false);
                         const setpoint = cmd.readUInt8(2);
                         room.setpoint$.next((setpoint + 100) / 10);
                     }
                 });
 
-                combineLatest(room.heat$, room.setpoint$).pipe(
+                combineLatest(room.heat$, room.cool$, room.setpoint$).pipe(
                     debounceTime(0),
                     takeUntil(close$),
-                ).subscribe(([on, setpoint]) => {
+                ).subscribe(([heat, cool, setpoint]) => {
                     settings = cloneDeep(settings);
-                    settings.rooms[key].on = on;
+                    settings.rooms[key].heat = heat;
+                    settings.rooms[key].cool = cool;
                     settings.rooms[key].setpoint = setpoint;
                     settingsSubject.next(settings);
                 });
