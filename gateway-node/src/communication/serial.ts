@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { delay, distinctUntilChanged, publishReplay, refCount, retryWhen } from 'rxjs/operators';
 
 import * as SerialPort from 'serialport';

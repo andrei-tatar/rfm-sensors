@@ -1,6 +1,9 @@
 import * as net from 'net';
-import { BehaviorSubject, merge, Observable, of, Subject, throwError, timer } from 'rxjs';
-import { catchError, concatMap, distinctUntilChanged, first, map, publishReplay, refCount, switchMap } from 'rxjs/operators';
+import { merge, Observable, of, Subject, throwError, timer } from 'rxjs';
+import {
+    catchError, concatMap, delay, distinctUntilChanged, first,
+    map, publishReplay, refCount, retryWhen, switchMap
+} from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
@@ -30,6 +33,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 return fwd;
             }),
             distinctUntilChanged(),
+            retryWhen(err => err.pipe(delay(this.reconnectInterval))),
             publishReplay(1),
             refCount(),
         );
@@ -44,37 +48,22 @@ export class Telnet implements ConnectableLayer<Buffer> {
 
     private connect() {
         return new Observable<boolean>(observer => {
-            if (this.socket) {
-                this.socket.destroy();
-                this.socket = null;
-            }
-
-            let reconnectTimeout: NodeJS.Timer;
             this.socket = new net.Socket();
             this.socket.on('data', data => this._data.next(data));
             this.socket.once('disconnect', () => {
-                observer.next(false);
-                this.logger.warn('telnet: disconnected from server');
-                reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
+                observer.error(new Error('disconnected from server'));
             });
             this.socket.once('error', err => {
-                observer.next(false);
-                this.logger.warn(`telnet: error: ${err.message}`);
-                reconnectTimeout = setTimeout(() => this.connect(), this.reconnectInterval);
+                observer.error(err);
             });
-
             this.logger.debug('telnet: connecting');
             this.socket.connect(this.port, this.host, async () => {
                 this.logger.debug('telnet: connected');
                 observer.next(true);
             });
-
             return () => {
-                clearTimeout(reconnectTimeout);
-                if (this.socket) {
-                    this.socket.destroy();
-                    this.socket = null;
-                }
+                this.socket.destroy();
+                this.socket = null;
             };
         });
 
