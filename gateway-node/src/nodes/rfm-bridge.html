@@ -4,7 +4,7 @@
         defaults: {
             name: { value: 'Bridge' },
             port: { value: 'serial://COM7', required: true },
-            key: { value: '', validate: RED.validators.regex(/(?:[a-f0-9]{32})?/) },
+            port1: { value: '' },
         },
         label: function () { return this.name || 'Tab'; }
     });
@@ -21,8 +21,8 @@
         <input type="text" id="node-config-input-port">
     </div>
     <div class="form-row">
-        <label for="node-config-input-key"><i class="fa fa-key"></i> Key</label>
-        <input type="text" id="node-config-input-key" placeholder="16 bytes hex without spaces/0x">
+        <label for="node-config-input-port1"><i class="fa fa-sort"></i> Port (1000)</label>
+        <input type="text" id="node-config-input-port1">
     </div>
 </script>
 

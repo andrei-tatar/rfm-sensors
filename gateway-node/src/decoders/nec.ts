@@ -1,4 +1,4 @@
-import { IDecoder } from './decoder';
+import { IDecoder } from './IDecoder';
 
 export class NecDecoder implements IDecoder {
     private static readonly max_error = 21; // %

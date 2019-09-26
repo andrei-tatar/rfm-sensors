@@ -1,5 +1,5 @@
 import * as moment from 'moment';
-import { combineLatest, interval, Observable } from 'rxjs';
+import { combineLatest, interval } from 'rxjs';
 import { map, startWith, tap, timestamp } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
@@ -12,7 +12,6 @@ module.exports = function (RED) {
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
 
-        const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
 
         const stateObservable = nodeLayer.data
@@ -60,7 +59,7 @@ module.exports = function (RED) {
                 timestamp()
             );
 
-        const subscription = combineLatest(connected,
+        const subscription = combineLatest(nodeLayer.connected,
             stateObservable.pipe(startWith(null)),
             interval(30000).pipe(startWith(0)))
             .subscribe(([isConnected, state]) => {

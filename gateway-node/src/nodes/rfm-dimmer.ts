@@ -3,7 +3,7 @@ import { RadioNode } from '../communication/node';
 import * as moment from 'moment';
 import {
     combineLatest, concat, defer, EMPTY, interval, merge,
-    NEVER, Observable, of, Subject, timer
+    NEVER, of, Subject, timer
 } from 'rxjs';
 import {
     catchError, delay, filter, finalize,
@@ -18,7 +18,6 @@ module.exports = function (RED) {
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
 
-        const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
         const periodicSync = interval(10 * 60000).pipe(startWith(0));
         const stop = new Subject();
@@ -34,7 +33,7 @@ module.exports = function (RED) {
             nodeLayer.send(Buffer.from([4, ledBrightness])), // set led bright
         );
 
-        combineLatest(connected, periodicSync)
+        combineLatest(nodeLayer.connected, periodicSync)
             .pipe(
                 takeUntil(stop),
                 switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 20) * 2000) : NEVER),
@@ -48,7 +47,7 @@ module.exports = function (RED) {
         const updateStatus = new Subject();
         let uploading = false;
 
-        combineLatest(connected,
+        combineLatest(nodeLayer.connected,
             merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
             interval(30000).pipe(startWith(0)))
             .pipe(

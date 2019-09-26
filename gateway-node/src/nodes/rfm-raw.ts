@@ -1,5 +1,5 @@
 import * as moment from 'moment';
-import { combineLatest, concat, defer, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
+import { combineLatest, concat, defer, EMPTY, interval, merge, of, Subject } from 'rxjs';
 import {
     catchError, delay, filter, finalize,
     startWith, takeUntil, throttleTime, timestamp
@@ -15,14 +15,13 @@ module.exports = function (RED) {
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
 
-        const connected: Observable<boolean> = bridge.connected;
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
         const stop = new Subject();
 
         const updateStatus = new Subject();
         let uploading = false;
 
-        combineLatest(connected,
+        combineLatest(nodeLayer.connected,
             merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
             interval(30000).pipe(startWith(0)))
             .pipe(

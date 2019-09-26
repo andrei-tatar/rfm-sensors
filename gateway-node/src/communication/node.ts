@@ -4,16 +4,19 @@ import {
     finalize, first, map, materialize, retry, tap, timeout
 } from 'rxjs/operators';
 
-import { MessageLayer } from './message';
+import { ConnectableLayer } from './message';
+import { RadioLayer } from './radio';
 
-export class RadioNode implements MessageLayer<Buffer> {
+export class RadioNode implements ConnectableLayer<Buffer> {
     readonly data = this.below.data.pipe(
         filter(d => d.addr === this.address && [0xCA, 0xCB, 0xCC].indexOf(d.data[0]) === -1),
         map(p => p.data)
     );
 
+    readonly connected = this.below.connected;
+
     constructor(
-        private below: MessageLayer<{ addr: number, data: Buffer }>,
+        private below: RadioLayer,
         public readonly address: number,
     ) {
     }

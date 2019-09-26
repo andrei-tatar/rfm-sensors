@@ -1,9 +1,11 @@
 import { URL } from 'url';
 
-import { EMPTY, NEVER, of } from 'rxjs';
 import { ConnectableLayer } from './communication/message';
+import { PackageLayer } from './communication/package';
+import { RadioLayer } from './communication/radio';
 import { SerialLayer } from './communication/serial';
 import { Telnet } from './communication/telnet';
+import { DebugLayer } from './DebugLayer';
 
 export function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer> {
     const url = new URL(address);
@@ -21,21 +23,14 @@ export function getBaseLayer(address: string, logger: Logger): ConnectableLayer<
     }
 }
 
+export function getRadioLayer(address: string, logger: Logger): RadioLayer {
+    const url = new URL(address);
+    const base = getBaseLayer(address, logger);
+    const packageLayer = new PackageLayer(base);
 
-class DebugLayer implements ConnectableLayer<Buffer> {
-    connected = of(true);
-
-    data = NEVER;
-
-    connect() {
-    }
-
-    close() {
-    }
-
-    send(arg: Buffer) {
-        // tslint:disable-next-line:no-console
-        console.log(arg.toString('hex'));
-        return EMPTY;
-    }
+    const key = url.searchParams.get('key');
+    let power = parseInt(url.searchParams.get('power'), 10);
+    if (isNaN(power)) { power = undefined; }
+    const radioLayer = new RadioLayer(packageLayer, logger, { key, power });
+    return radioLayer;
 }

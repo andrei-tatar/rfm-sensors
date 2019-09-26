@@ -1,7 +1,7 @@
 import { defer } from 'rxjs';
 import { filter, map, scan, share } from 'rxjs/operators';
 
-import { MessageLayer } from './message';
+import { ConnectableLayer } from './message';
 
 const FrameHeader1 = 0xDE, FrameHeader2 = 0x5B;
 
@@ -19,7 +19,7 @@ interface State {
     last: number;
 }
 
-export class PackageLayer implements MessageLayer<Buffer> {
+export class PackageLayer implements ConnectableLayer<Buffer> {
     readonly data = this.below.data
         .pipe(
             scan((state: State, value: Buffer) => {
@@ -42,7 +42,9 @@ export class PackageLayer implements MessageLayer<Buffer> {
             share()
         );
 
-    constructor(private below: MessageLayer<Buffer>) {
+    readonly connected = this.below.connected;
+
+    constructor(private below: ConnectableLayer<Buffer>) {
     }
 
     private processReceivedData(state: State, rx: Buffer) {

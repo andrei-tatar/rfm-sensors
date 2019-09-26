@@ -1,47 +1,24 @@
-import { concat, EMPTY, of, Subject } from 'rxjs';
-import { catchError, concatMap, distinctUntilChanged, map, publishReplay, refCount, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 import { RadioNode } from '../communication/node';
-import { PackageLayer } from './../communication/package';
-import { RadioLayer } from './../communication/radio';
-import { getBaseLayer } from './../util';
+import { RadioLayer } from '../communication/radio';
+import { getRadioLayer } from './../util';
 
 module.exports = function (RED) {
     function BridgeNode(config) {
         RED.nodes.createNode(this, config);
-
-        const base = getBaseLayer(config.port, RED.log);
-        const packageLayer = new PackageLayer(base);
-        const radioLayer = new RadioLayer(packageLayer, RED.log);
+        const radioLayers = new Map<string, RadioLayer>();
         const close$ = new Subject();
 
-        this.radio = radioLayer;
-        this.connected = base.connected
-            .pipe(
-                concatMap(isConnected => {
-                    if (isConnected) {
-                        return concat(radioLayer
-                            .init({
-                                key: Buffer.from(config.key, 'hex'),
-                                powerLevel: 31
-                            }).pipe(
-                                map(() => isConnected)
-                            ), of(isConnected))
-                            .pipe(distinctUntilChanged());
-                    }
-                    return of(isConnected);
-                }),
-                catchError(err => {
-                    this.error(`while initializing communication ${err.message}`);
-                    return EMPTY;
-                }),
-                takeUntil(close$),
-                publishReplay(1),
-                refCount(),
-            );
-
-        this.create = (address: number) => new RadioNode(radioLayer, address);
-
+        this.create = (address: number) => {
+            const connectionString = address < 1000 ? config.port : config.port1;
+            let radioLayer = radioLayers.get(connectionString);
+            if (!radioLayer) {
+                radioLayer = getRadioLayer(connectionString, RED.log);
+                radioLayers.set(connectionString, radioLayer);
+            }
+            return new RadioNode(radioLayer, address);
+        };
         this.on('close', () => {
             close$.next();
             close$.complete();

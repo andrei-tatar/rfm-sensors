@@ -33,6 +33,7 @@ interface ObservableNodes<T extends HeatingSettings> {
     on$: BehaviorSubject<boolean>;
     heaterOn$: Observable<boolean>;
     histerezis: number;
+    connected$: Observable<{ connected: number; from: number; }>;
     rooms: {
         [P in keyof T['rooms']]: RoomObservable;
     };
@@ -102,16 +103,20 @@ module.exports = function (RED) {
         }
 
         const close$ = new Subject();
-        const connected: Observable<boolean> = bridge.connected;
         const createNodeObservables: typeof createObservableNodes = createObservableNodes.bind(this);
         const nodes$ = createNodeObservables(useSettings, bridge.create);
 
-        combineLatest(connected, nodes$.enable$, nodes$.on$).pipe(
+        combineLatest(nodes$.connected$, nodes$.enable$, nodes$.on$).pipe(
             takeUntil(close$)
-        ).subscribe(([isConnected, enable, on]) => {
-            this.status(isConnected
-                ? { fill: 'green', shape: 'dot', text: `connected (E:${enable},O:${on})` }
-                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        ).subscribe(([connected, enable, on]) => {
+            const text = `connected ${connected.connected}/${connected.from} (E:${enable},O:${on})`;
+            let fill: string;
+            switch (connected.connected) {
+                case 0: fill = 'red'; break;
+                case connected.from: fill = 'green'; break;
+                default: fill = 'orange'; break;
+            }
+            this.status({ fill, shape: 'dot', text });
         });
 
         nodes$.settings$.pipe(
@@ -234,39 +239,9 @@ module.exports = function (RED) {
             );
             const on$ = new BehaviorSubject(false);
             const enable$ = new BehaviorSubject(settings.enable);
-            const nodes: ObservableNodes<T> = {
-                settings$,
-                on$,
-                enable$,
-                histerezis: settings.histerezis,
-                rooms: {} as any,
-                heaterOn$: combineLatest(on$, enable$).pipe(
-                    debounceTime(0),
-                    map(([on, enable]) => on && enable),
-                    distinctUntilChanged(),
-                    publishReplay(1),
-                    refCount(),
-                ),
-            };
 
-            nodes.enable$.pipe(skip(1), takeUntil(close$)).subscribe(enable => {
-                settings = cloneDeep(settings);
-                settings.enable = enable;
-                settingsSubject.next(settings);
-            });
-
-            combineLatest(
-                nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
-                interval(60000).pipe(startWith(0))
-            ).pipe(
-                switchMap(([on]) =>
-                    heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
-                        this.error(`while updating heater state: ${err}`);
-                        return EMPTY;
-                    }))
-                ),
-                takeUntil(close$),
-            ).subscribe();
+            const rooms: any = {};
+            const connectedDevices: Observable<boolean>[] = [];
 
             for (const key of Object.keys(settings.rooms)) {
                 const roomSettings = settings.rooms[key];
@@ -300,7 +275,8 @@ module.exports = function (RED) {
                     valveBattery$,
                     thermostatBattery$,
                 };
-                nodes.rooms[key as keyof T['rooms']] = room;
+                connectedDevices.push(thermostat.connected, valve.connected);
+                rooms[key as keyof T['rooms']] = room;
 
                 const valvePoll$ = valve.data;
                 valvePoll$.pipe(switchMap(_ => {
@@ -350,6 +326,48 @@ module.exports = function (RED) {
                     settingsSubject.next(settings);
                 });
             }
+
+            const nodes: ObservableNodes<T> = {
+                settings$,
+                on$,
+                enable$,
+                rooms,
+                histerezis: settings.histerezis,
+                heaterOn$: combineLatest(on$, enable$).pipe(
+                    debounceTime(0),
+                    map(([on, enable]) => on && enable),
+                    distinctUntilChanged(),
+                    publishReplay(1),
+                    refCount(),
+                ),
+                connected$: combineLatest(connectedDevices).pipe(
+                    debounceTime(0),
+                    scan<boolean[], { connected: number; from: number; }>((acc, val) => {
+                        acc.from = val.length;
+                        acc.connected = val.filter(v => v).length;
+                        return acc;
+                    }, { connected: 0, from: 0 }),
+                ),
+            };
+
+            nodes.enable$.pipe(skip(1), takeUntil(close$)).subscribe(enable => {
+                settings = cloneDeep(settings);
+                settings.enable = enable;
+                settingsSubject.next(settings);
+            });
+
+            combineLatest(
+                nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
+                interval(60000).pipe(startWith(0))
+            ).pipe(
+                switchMap(([on]) =>
+                    heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
+                        this.error(`while updating heater state: ${err}`);
+                        return EMPTY;
+                    }))
+                ),
+                takeUntil(close$),
+            ).subscribe();
 
             return nodes;
         }

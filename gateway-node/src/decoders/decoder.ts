@@ -1,3 +1,4 @@
+import { IDecoder } from './IDecoder';
 import { NecDecoder } from './nec';
 import { SamsungDecoder } from './samsung';
 import { SonyDecoder } from './sony';
@@ -27,9 +28,4 @@ export class Decoder implements IDecoder {
         }
         return null;
     }
-}
-
-export interface IDecoder {
-    decode(pulses: number[]): string;
-    encode(code: string): number[];
 }

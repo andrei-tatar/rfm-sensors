@@ -1,10 +1,10 @@
-import { EMPTY, merge, Observable, of, Subject } from 'rxjs';
+import { concat, EMPTY, merge, Observable, of, Subject } from 'rxjs';
 import {
-    catchError, concatMap, filter, first,
-    ignoreElements, map, share, tap, timeout
+    catchError, concatMap, distinctUntilChanged, filter,
+    first, ignoreElements, map, publishReplay, refCount, share, tap, timeout
 } from 'rxjs/operators';
 
-import { MessageLayer } from './message';
+import { ConnectableLayer } from './message';
 
 interface SendMessage {
     addr: number;
@@ -30,7 +30,7 @@ class Constants {
     static readonly Err_Timeout = 0x75;
 }
 
-export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> {
+export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer }> {
     private _sendQueue = new Subject<SendMessage>();
     private _config: RadioConfig;
 
@@ -53,9 +53,12 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
             share()
         );
 
+    readonly connected = this.below.connected;
+
     constructor(
-        private below: MessageLayer<Buffer>,
+        private below: ConnectableLayer<Buffer>,
         private logger: Logger,
+        { key, power = 31 }: { key: string, power?: number },
     ) {
         this._sendQueue
             .pipe(
@@ -71,6 +74,28 @@ export class RadioLayer implements MessageLayer<{ addr: number, data: Buffer }> 
                 )
             )
             .subscribe();
+        this.connected = this.below.connected
+            .pipe(
+                concatMap(isConnected => {
+                    if (isConnected) {
+                        return concat(this
+                            .init({
+                                key: Buffer.from(key, 'hex'),
+                                powerLevel: power,
+                            }).pipe(
+                                map(() => isConnected)
+                            ), of(isConnected))
+                            .pipe(distinctUntilChanged());
+                    }
+                    return of(isConnected);
+                }),
+                catchError(err => {
+                    logger.error(`while initializing communication ${err.message}`);
+                    return EMPTY;
+                }),
+                publishReplay(1),
+                refCount(),
+            );
     }
 
     init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {

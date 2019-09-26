@@ -62,7 +62,7 @@ module.exports = function (RED) {
                 ).subscribe();
         });
 
-        const connected$ = base.connected.pipe(
+        const connected$ = pckg.connected.pipe(
             switchMap(connected => {
                 if (connected) {
                     return concat(
@@ -71,10 +71,11 @@ module.exports = function (RED) {
                     );
                 }
                 return of(connected);
-            }),
+            })
         );
 
-        const subscription = combineLatest(connected$,
+        const subscription = combineLatest(
+            connected$,
             state.pipe(startWith(null)),
             interval(30000).pipe(startWith(0))
         ).subscribe(([connected, st]) => {

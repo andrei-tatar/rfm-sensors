@@ -48,7 +48,7 @@ module.exports = function (RED) {
                 ).subscribe();
         });
 
-        const subscription = combineLatest(base.connected,
+        const subscription = combineLatest(pckg.connected,
             state.pipe(startWith(null)),
             interval(30000).pipe(startWith(0))
         ).subscribe(([connected, st]) => {
