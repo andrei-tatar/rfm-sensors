@@ -80,7 +80,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                     if (isConnected) {
                         return concat(this
                             .init({
-                                key: Buffer.from(key, 'hex'),
+                                key: key && Buffer.from(key, 'hex'),
                                 powerLevel: power,
                             }).pipe(
                                 map(() => isConnected)
