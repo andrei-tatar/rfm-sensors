@@ -17,7 +17,7 @@ module.exports = function (RED) {
                 radioLayer = getRadioLayer(connectionString, RED.log);
                 radioLayers.set(connectionString, radioLayer);
             }
-            return new RadioNode(radioLayer, address);
+            return new RadioNode(radioLayer, address % 1000);
         };
         this.on('close', () => {
             close$.next();
