@@ -25,8 +25,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
                             switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
                             map(() => isConnected),
                             catchError(err => {
-                                this.logger.warn(`could not send heartbeat ${err.message}`);
-                                return fwd;
+                                throw new Error(`could not send heartbeat: ${err.message}`);
                             })
                         )
                     );
