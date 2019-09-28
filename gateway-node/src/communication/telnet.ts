@@ -1,6 +1,9 @@
 import * as net from 'net';
 import { merge, Observable, of, Subject, timer } from 'rxjs';
-import { catchError, delay, first, map, publishReplay, refCount, retryWhen, startWith, switchMap } from 'rxjs/operators';
+import {
+    catchError, delay, distinctUntilChanged, first, map, publishReplay,
+    refCount, retryWhen, startWith, switchMap
+} from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
@@ -31,6 +34,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 return fwd;
             }),
             retryWhen(err => err.pipe(delay(this.reconnectInterval))),
+            distinctUntilChanged(),
             publishReplay(1),
             refCount(),
         );
