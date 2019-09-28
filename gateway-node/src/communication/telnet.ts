@@ -56,8 +56,9 @@ export class Telnet implements ConnectableLayer<Buffer> {
             socket.once('error', err => {
                 observer.error(err);
             });
+            this.logger.info(`telnet: connecting to ${this.host}:${this.port}`);
             socket.connect(this.port, this.host, async () => {
-                this.logger.debug('telnet: connected');
+                this.logger.info('telnet: connected');
                 observer.next(socket);
             });
             return () => socket.destroy();
