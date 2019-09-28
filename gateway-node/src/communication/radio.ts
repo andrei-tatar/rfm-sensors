@@ -53,7 +53,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             share()
         );
 
-    readonly connected = this.below.connected;
+    readonly connected: Observable<boolean>;
 
     constructor(
         private below: ConnectableLayer<Buffer>,
