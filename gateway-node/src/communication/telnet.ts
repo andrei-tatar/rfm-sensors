@@ -32,7 +32,6 @@ export class Telnet implements ConnectableLayer<Buffer> {
         return new Observable<net.Socket>(observer => {
             const socket = new net.Socket();
             socket.setNoDelay(true);
-            socket.setKeepAlive(true, 5000);
             socket.on('data', data => this._data.next(data));
             socket.once('disconnect', () => observer.error(new Error('disconnected from server')));
             socket.once('error', err => observer.error(err));
