@@ -309,11 +309,9 @@ module.exports = function (RED) {
                 const thermostatCommand$ = thermostat.data.pipe(filter(m => m.length === 3 && m[0] === 3));
                 thermostatCommand$.pipe(takeUntil(close$)).subscribe(cmd => {
                     const on = (cmd.readUInt8(1) & 1) === 1;
-                    if (on) {
-                        const setpoint = cmd.readUInt8(2);
-                        room.mode$.next('heat');
-                        room.setpoint$.next((setpoint + 100) / 10);
-                    }
+                    const setpoint = cmd.readUInt8(2);
+                    room.mode$.next(on ? 'heat' : 'off');
+                    room.setpoint$.next((setpoint + 100) / 10);
                 });
 
                 combineLatest(room.mode$, room.setpoint$).pipe(
