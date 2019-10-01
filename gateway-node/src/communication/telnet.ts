@@ -64,6 +64,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
             return () => {
                 this.socket = null;
                 socket.end();
+                socket.destroy();
             };
         });
     }
