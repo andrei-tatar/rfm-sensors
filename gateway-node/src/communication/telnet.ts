@@ -31,12 +31,16 @@ export class Telnet implements ConnectableLayer<Buffer> {
     private createSocket() {
         return new Observable<net.Socket>(observer => {
             const socket = new net.Socket();
+            socket.setNoDelay(true);
             socket.setKeepAlive(true, 5000);
-            socket.setTimeout(5000);
             socket.on('data', data => this._data.next(data));
             socket.once('disconnect', () => observer.error(new Error('disconnected from server')));
             socket.once('error', err => observer.error(err));
-            socket.once('timeout', () => observer.error(new Error('socket timeout')));
+            socket.once('end', (hadError: boolean) => {
+                if (!hadError) {
+                    observer.error(new Error('connection closed'));
+                }
+            });
             this.logger.info(`telnet: connecting to ${this.host}:${this.port}`);
             socket.connect(this.port, this.host, async () => {
                 this.logger.info('telnet: connected');
