@@ -63,7 +63,7 @@ export class SerialLayer implements ConnectableLayer<Buffer> {
     }
 
     send(data: Buffer) {
-        return new Observable<void>(observer => {
+        return new Observable<never>(observer => {
             this.serial.write(data, (err) => {
                 if (err) {
                     observer.error(err);

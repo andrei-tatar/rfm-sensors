@@ -83,9 +83,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                             .init({
                                 key: key && Buffer.from(key, 'hex'),
                                 powerLevel: power,
-                            }).pipe(
-                                map(() => isConnected)
-                            ), of(isConnected))
+                            }), of(isConnected))
                             .pipe(distinctUntilChanged());
                     }
                     return of(isConnected);
@@ -130,13 +128,13 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             aux.copy(configure, 0, 0, offset);
             this.logger.info('radio: sending configuration');
             return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured)
-                .pipe(tap(_ => this.logger.info('radio: configuration sent!')));
+                .pipe(tap(() => { }, () => { }, () => this.logger.info('radio: configuration sent!')));
         }
         return EMPTY;
     }
 
     send({ data, addr }: { addr: number, data: Buffer }) {
-        return new Observable<void>(observer => {
+        return new Observable<never>(observer => {
             this._sendQueue.next({
                 addr,
                 data,
@@ -184,14 +182,15 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             first(),
             timeout(timeoutTime)
         );
-        return merge(waitForReply$, this.below.send(packet).pipe(ignoreElements()))
+        return merge(waitForReply$, this.below.send(packet))
             .pipe(
                 catchError(err => {
                     if (err.name === 'TimeoutError') {
                         throw new Error('timeout sending data');
                     }
                     throw err;
-                })
+                }),
+                ignoreElements(),
             );
     }
 }
