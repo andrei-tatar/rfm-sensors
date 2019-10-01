@@ -14,8 +14,8 @@ export class Telnet implements ConnectableLayer<Buffer> {
     readonly data = this._data.asObservable();
     readonly connected = this.createSocket()
         .pipe(
-            startWith(false),
             map(_ => true),
+            startWith(false),
             switchMap(isConnected => {
                 const fwd = of(isConnected);
                 if (isConnected) {
