@@ -1,9 +1,6 @@
 import * as net from 'net';
-import { defer, merge, Observable, of, Subject, timer } from 'rxjs';
-import {
-    catchError, delay, distinctUntilChanged, ignoreElements,
-    map, retryWhen, startWith, switchMap, tap
-} from 'rxjs/operators';
+import { defer, Observable, Subject } from 'rxjs';
+import { delay, distinctUntilChanged, map, retryWhen, startWith, tap } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
