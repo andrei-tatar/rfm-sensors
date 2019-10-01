@@ -1,7 +1,8 @@
 import { concat, EMPTY, merge, Observable, of, Subject } from 'rxjs';
 import {
-    catchError, concatMap, distinctUntilChanged, filter,
-    first, ignoreElements, map, publishReplay, refCount, share, tap, timeout
+    catchError, concatMap, delay, distinctUntilChanged,
+    filter, first, ignoreElements, map, publishReplay,
+    refCount, retryWhen, share, startWith, tap, timeout
 } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
@@ -89,16 +90,18 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                     }
                     return of(isConnected);
                 }),
-                catchError(err => {
-                    logger.error(`while initializing communication ${err.message}`);
-                    return EMPTY;
-                }),
+                retryWhen(errs => errs.pipe(
+                    tap(err => logger.error(`while initializing communication ${err.message}`)),
+                    delay(5000),
+                )),
+                startWith(false),
+                distinctUntilChanged(),
                 publishReplay(1),
                 refCount(),
             );
     }
 
-    init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
+    private init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
         this._config = { key, freq, networkId, powerLevel };
         const aux = Buffer.alloc(100);
         let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);

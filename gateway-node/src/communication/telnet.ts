@@ -1,18 +1,18 @@
 import * as net from 'net';
-import { merge, Observable, of, Subject, timer } from 'rxjs';
+import { merge, Observable, of, ReplaySubject, Subject, timer } from 'rxjs';
 import {
-    catchError, delay, distinctUntilChanged, first, map, publishReplay,
-    refCount, retryWhen, startWith, switchMap
+    catchError, delay, distinctUntilChanged, ignoreElements,
+    map, retryWhen, startWith, switchMap, tap
 } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
 export class Telnet implements ConnectableLayer<Buffer> {
     private readonly _data = new Subject<Buffer>();
-    private socket$ = this.createSocket().pipe(publishReplay(1), refCount());
+    private socket = new ReplaySubject<net.Socket | null>(1);
 
     readonly data = this._data.asObservable();
-    readonly connected = this.socket$
+    readonly connected = this.createSocket()
         .pipe(
             startWith(false),
             map(_ => true),
@@ -23,19 +23,20 @@ export class Telnet implements ConnectableLayer<Buffer> {
                         timer(0, 5000).pipe(
                             // heartbeat
                             switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
-                            map(() => isConnected),
                             catchError(err => {
                                 throw new Error(`could not send heartbeat: ${err.message}`);
-                            })
+                            }),
+                            ignoreElements(),
                         )
                     );
                 }
                 return fwd;
             }),
-            retryWhen(err => err.pipe(delay(this.reconnectInterval))),
+            retryWhen(errs => errs.pipe(
+                tap(err => this.logger.info(`telnet: error, trying to reconnect: ${err.message}`)),
+                delay(this.reconnectInterval),
+            )),
             distinctUntilChanged(),
-            publishReplay(1),
-            refCount(),
         );
 
     constructor(
@@ -49,28 +50,34 @@ export class Telnet implements ConnectableLayer<Buffer> {
     private createSocket() {
         return new Observable<net.Socket>(observer => {
             const socket = new net.Socket();
+            socket.setTimeout(5000);
             socket.on('data', data => this._data.next(data));
-            socket.once('disconnect', () => {
-                observer.error(new Error('disconnected from server'));
-            });
-            socket.once('error', err => {
-                observer.error(err);
-            });
+            socket.once('disconnect', () => observer.error(new Error('disconnected from server')));
+            socket.once('error', err => observer.error(err));
+            socket.once('timeout', () => observer.error(new Error('socket timeout')));
             this.logger.info(`telnet: connecting to ${this.host}:${this.port}`);
             socket.connect(this.port, this.host, async () => {
                 this.logger.info('telnet: connected');
+                this.socket.next(socket);
                 observer.next(socket);
             });
-            return () => socket.destroy();
+            return () => {
+                this.socket.next(null);
+                socket.end();
+            };
         });
     }
 
-    send(data: Buffer): Observable<void> {
-        return this.socket$.pipe(
-            first(),
+    send(data: Buffer): Observable<never> {
+        return this.socket.pipe(
             switchMap(socket => {
-                return new Promise<void>(resolve => socket.write(data, resolve));
+                if (!socket) { throw new Error('telnet: socket not connected'); }
+
+                return new Promise((resolve, reject) => socket.write(data, (err) => {
+                    if (err) { reject(err); } else { resolve(); }
+                }));
             }),
+            ignoreElements()
         );
     }
 }
