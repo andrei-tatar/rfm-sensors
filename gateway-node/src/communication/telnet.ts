@@ -16,22 +16,6 @@ export class Telnet implements ConnectableLayer<Buffer> {
         .pipe(
             map(_ => true),
             startWith(false),
-            switchMap(isConnected => {
-                const fwd = of(isConnected);
-                if (isConnected) {
-                    return merge(fwd,
-                        timer(0, 5000).pipe(
-                            // heartbeat
-                            switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
-                            catchError(err => {
-                                throw new Error(`could not send heartbeat: ${err.message}`);
-                            }),
-                            ignoreElements(),
-                        )
-                    );
-                }
-                return fwd;
-            }),
             retryWhen(errs => errs.pipe(
                 tap(err => this.logger.info(`telnet: error, trying to reconnect: ${err.message}`)),
                 delay(this.reconnectInterval),
@@ -50,6 +34,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
     private createSocket() {
         return new Observable<net.Socket>(observer => {
             const socket = new net.Socket();
+            socket.setKeepAlive(true, 5000);
             socket.setTimeout(5000);
             socket.on('data', data => this._data.next(data));
             socket.once('disconnect', () => observer.error(new Error('disconnected from server')));
