@@ -1,6 +1,6 @@
 import * as net from 'net';
-import { defer, Observable, Subject } from 'rxjs';
-import { delay, distinctUntilChanged, map, retryWhen, startWith, tap } from 'rxjs/operators';
+import { defer, interval, merge, Observable, of, Subject } from 'rxjs';
+import { delay, distinctUntilChanged, map, retryWhen, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
@@ -13,6 +13,18 @@ export class Telnet implements ConnectableLayer<Buffer> {
         .pipe(
             map(_ => true),
             startWith(false),
+            switchMap(isConnected => {
+                const fwd = of(isConnected);
+                if (isConnected) {
+                    return merge(fwd,
+                        interval(60e3).pipe(
+                            // heartbeat to keep telnet alive
+                            switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
+                        )
+                    );
+                }
+                return fwd;
+            }),
             retryWhen(errs => errs.pipe(
                 tap(err => this.logger.info(`telnet: error, trying to reconnect: ${err.message}`)),
                 delay(this.reconnectInterval),
