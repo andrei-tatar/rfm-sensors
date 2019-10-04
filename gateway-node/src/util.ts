@@ -37,7 +37,7 @@ export function getRadioLayer(address: string, logger: Logger): RadioLayer {
     const key = url.searchParams.get('key');
     let power = parseInt(url.searchParams.get('power'), 10);
     if (isNaN(power)) { power = undefined; }
-    const requireHeartbeatEcho = url.searchParams.get('hb') !== undefined;
+    const requireHeartbeatEcho = url.searchParams.get('hb') !== null;
     const radioLayer = new RadioLayer(packageLayer, logger, { key, power, requireHeartbeatEcho });
     return radioLayer;
 }

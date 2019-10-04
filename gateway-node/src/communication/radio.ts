@@ -1,4 +1,4 @@
-import { concat, EMPTY, interval, merge, Observable, of, Subject, defer } from 'rxjs';
+import { concat, EMPTY, interval, merge, Observable, of, Subject, defer, throwError } from 'rxjs';
 import {
     catchError, concatMap, delay, distinctUntilChanged,
     filter, first, ignoreElements, map, publishReplay,
@@ -24,7 +24,7 @@ class Constants {
     static readonly Rsp_ReceivePacket = 0x94;
 
     static readonly Rsp_Init = 0x95;
-    static readonly HearBeat = 0x96;
+    static readonly HeartBeat = 0x96;
 
     static readonly Err_InvalidSize = 0x71;
     static readonly Err_Busy = 0x72;
@@ -100,11 +100,11 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                             : interval(heartBeatInterval).pipe(
                                 switchMap(() =>
                                     this.sendPacketAndWaitFor(
-                                        Buffer.from([Constants.HearBeat]),
-                                        p => p.length === 2 && p[0] === Constants.HearBeat
+                                        Buffer.from([Constants.HeartBeat]),
+                                        p => p.length === 2 && p[0] === Constants.HeartBeat
                                     ).pipe(
                                         catchError(() => {
-                                            throw new Error('did not receive heartbeat');
+                                            return throwError(new Error('did not receive heartbeat'));
                                         })
                                     )
                                 ),
@@ -113,9 +113,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                     }
                     return of(isConnected);
                 }),
-                retryWhen(errs => errs.pipe(
-                    delay(5000),
-                )),
+                retryWhen(errs => errs.pipe(delay(5000))),
                 distinctUntilChanged(),
                 publishReplay(1),
                 refCount(),
@@ -172,7 +170,6 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
     private reinit() {
         return this.init(this._config)
             .pipe(
-                ignoreElements(),
                 catchError(err => {
                     this.logger.warn(`radio.reset-init: error: ${err.message}`);
                     return EMPTY;
