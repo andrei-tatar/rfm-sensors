@@ -1,6 +1,6 @@
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval, merge, of } from 'rxjs';
-import { catchError, distinctUntilChanged, filter, ignoreElements, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
+import { combineLatest, concat, EMPTY, interval, of } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
 import { getPackageLayer } from '../util';
 
