@@ -1,4 +1,4 @@
-import { concat, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
+import { concat, EMPTY, interval, merge, Observable, of, Subject, defer } from 'rxjs';
 import {
     catchError, concatMap, delay, distinctUntilChanged,
     filter, first, ignoreElements, map, publishReplay,
@@ -122,38 +122,40 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             );
     }
 
-    private init({ key, freq, networkId, powerLevel }: RadioConfig = {}) {
-        this._config = { key, freq, networkId, powerLevel };
-        const aux = Buffer.alloc(100);
-        let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
-        if (key !== void 0) {
-            if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
-            offset = aux.writeUInt8('K'.charCodeAt(0), offset);
-            offset += key.copy(aux, offset);
+    private init({ key, freq, networkId, powerLevel }: RadioConfig = {}): Observable<never> {
+        return defer(() => {
+            this._config = { key, freq, networkId, powerLevel };
+            const aux = Buffer.alloc(100);
+            let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
+            if (key !== void 0) {
+                if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
+                offset = aux.writeUInt8('K'.charCodeAt(0), offset);
+                offset += key.copy(aux, offset);
 
-            offset = aux.writeUInt8('R'.charCodeAt(0), offset);
-            offset += aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
-        }
-        if (freq !== void 0) {
-            offset = aux.writeUInt8('F'.charCodeAt(0), offset);
-            offset = aux.writeUInt32LE(freq, offset);
-        }
-        if (networkId !== void 0) {
-            offset = aux.writeUInt8('N'.charCodeAt(0), offset);
-            offset = aux.writeUInt8(networkId, offset);
-        }
-        if (powerLevel !== void 0) {
-            offset = aux.writeUInt8('P'.charCodeAt(0), offset);
-            offset = aux.writeUInt8(powerLevel, offset);
-        }
-        if (offset !== 0) {
-            const configure = Buffer.alloc(offset);
-            aux.copy(configure, 0, 0, offset);
-            this.logger.info('radio: sending configuration');
-            return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured)
-                .pipe(tap(() => { }, () => { }, () => this.logger.info('radio: configuration sent!')));
-        }
-        return EMPTY;
+                offset = aux.writeUInt8('R'.charCodeAt(0), offset);
+                offset += aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
+            }
+            if (freq !== void 0) {
+                offset = aux.writeUInt8('F'.charCodeAt(0), offset);
+                offset = aux.writeUInt32LE(freq, offset);
+            }
+            if (networkId !== void 0) {
+                offset = aux.writeUInt8('N'.charCodeAt(0), offset);
+                offset = aux.writeUInt8(networkId, offset);
+            }
+            if (powerLevel !== void 0) {
+                offset = aux.writeUInt8('P'.charCodeAt(0), offset);
+                offset = aux.writeUInt8(powerLevel, offset);
+            }
+            if (offset !== 0) {
+                const configure = Buffer.alloc(offset);
+                aux.copy(configure, 0, 0, offset);
+                this.logger.info('radio: sending configuration');
+                return this.sendPacketAndWaitFor(configure, p => p.length === 2 && p[0] === Constants.Rsp_Configured)
+                    .pipe(tap(() => { }, () => { }, () => this.logger.info('radio: configuration sent!')));
+            }
+            return EMPTY;
+        });
     }
 
     send({ data, addr }: { addr: number, data: Buffer }) {
