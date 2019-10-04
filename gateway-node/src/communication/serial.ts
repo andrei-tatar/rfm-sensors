@@ -3,6 +3,7 @@ import { delay, distinctUntilChanged, publishReplay, refCount, retryWhen } from 
 
 import * as SerialPort from 'serialport';
 
+import { Logger } from '../Logger';
 import { ConnectableLayer } from './message';
 
 export class SerialLayer implements ConnectableLayer<Buffer> {
@@ -13,8 +14,6 @@ export class SerialLayer implements ConnectableLayer<Buffer> {
     readonly connected = this.connect().pipe(
         distinctUntilChanged(),
         retryWhen(err => err.pipe(delay(5000))),
-        publishReplay(1),
-        refCount(),
     );
 
     constructor(

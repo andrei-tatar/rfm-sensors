@@ -2,8 +2,7 @@ import * as moment from 'moment';
 import { combineLatest, EMPTY, interval } from 'rxjs';
 import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operators';
 
-import { getBaseLayer } from '../util';
-import { PackageLayer } from './../communication/package';
+import { getPackageLayer } from '../util';
 import { Decoder } from './../decoders/decoder';
 
 module.exports = function (RED) {
@@ -12,8 +11,7 @@ module.exports = function (RED) {
         const decoder = new Decoder();
 
         RED.nodes.createNode(this, config);
-        const base = getBaseLayer(config.port, RED.log);
-        const pckg = new PackageLayer(base);
+        const pckg = getPackageLayer(config.port, RED.log);
         const state = pckg.data.pipe(
             map(msg => {
                 if (msg[0] === 1) {

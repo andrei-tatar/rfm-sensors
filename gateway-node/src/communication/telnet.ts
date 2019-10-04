@@ -2,6 +2,7 @@ import * as net from 'net';
 import { defer, interval, merge, Observable, of, Subject } from 'rxjs';
 import { delay, distinctUntilChanged, map, retryWhen, startWith, switchMap, tap } from 'rxjs/operators';
 
+import { Logger } from '../Logger';
 import { ConnectableLayer } from './message';
 
 export class Telnet implements ConnectableLayer<Buffer> {
@@ -17,8 +18,8 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 const fwd = of(isConnected);
                 if (isConnected) {
                     return merge(fwd,
-                        interval(60e3).pipe(
-                            // heartbeat to keep telnet alive
+                        interval(200e3).pipe(
+                            // some data to keep telnet alive
                             switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
                         )
                     );

@@ -1,5 +1,5 @@
 import { defer } from 'rxjs';
-import { filter, map, scan, share } from 'rxjs/operators';
+import { filter, map, publishReplay, refCount, scan, share } from 'rxjs/operators';
 
 import { ConnectableLayer } from './message';
 
@@ -42,9 +42,14 @@ export class PackageLayer implements ConnectableLayer<Buffer> {
             share()
         );
 
-    readonly connected = this.below.connected;
+    readonly connected = this.replayConnected
+        ? this.below.connected.pipe(publishReplay(1), refCount())
+        : this.below.connected;
 
-    constructor(private below: ConnectableLayer<Buffer>) {
+    constructor(
+        private below: ConnectableLayer<Buffer>,
+        private replayConnected = false,
+    ) {
     }
 
     private processReceivedData(state: State, rx: Buffer) {

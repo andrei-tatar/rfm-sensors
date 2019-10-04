@@ -8,6 +8,7 @@ import {
     publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
+import { Logger } from '../Logger';
 
 type ThermostatMode = 'off' | 'heat' | 'cool';
 

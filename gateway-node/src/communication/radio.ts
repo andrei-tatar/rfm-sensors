@@ -1,10 +1,11 @@
-import { concat, EMPTY, merge, Observable, of, Subject } from 'rxjs';
+import { concat, EMPTY, interval, merge, Observable, of, Subject } from 'rxjs';
 import {
     catchError, concatMap, delay, distinctUntilChanged,
     filter, first, ignoreElements, map, publishReplay,
-    refCount, retryWhen, share, startWith, tap, timeout
+    refCount, retryWhen, share, switchMap, tap, timeout
 } from 'rxjs/operators';
 
+import { Logger } from '../Logger';
 import { ConnectableLayer } from './message';
 
 interface SendMessage {
@@ -23,6 +24,7 @@ class Constants {
     static readonly Rsp_ReceivePacket = 0x94;
 
     static readonly Rsp_Init = 0x95;
+    static readonly HearBeat = 0x96;
 
     static readonly Err_InvalidSize = 0x71;
     static readonly Err_Busy = 0x72;
@@ -51,7 +53,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                 p.copy(msg, 0, 2, p.length);
                 return { data: msg, addr: p[1] };
             }),
-            share()
+            share(),
         );
 
     readonly connected: Observable<boolean>;
@@ -59,7 +61,16 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
     constructor(
         private below: ConnectableLayer<Buffer>,
         private logger: Logger,
-        { key, power = 31 }: { key: string, power?: number },
+        {
+            key,
+            power = 31,
+            heartBeatInterval = 60e3,
+            requireHeartbeatEcho = false,
+        }: {
+            key: string, power?: number,
+            heartBeatInterval?: number,
+            requireHeartbeatEcho?: boolean,
+        },
     ) {
         this._sendQueue
             .pipe(
@@ -77,22 +88,34 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             .subscribe();
         this.connected = this.below.connected
             .pipe(
-                concatMap(isConnected => {
+                switchMap(isConnected => {
                     if (isConnected) {
-                        return concat(this
+                        const init$ = this
                             .init({
                                 key: key && Buffer.from(key, 'hex'),
                                 powerLevel: power,
-                            }), of(isConnected))
-                            .pipe(distinctUntilChanged());
+                            });
+                        const heartBeat$ = !requireHeartbeatEcho
+                            ? EMPTY
+                            : interval(heartBeatInterval).pipe(
+                                switchMap(() =>
+                                    this.sendPacketAndWaitFor(
+                                        Buffer.from([Constants.HearBeat]),
+                                        p => p.length === 2 && p[0] === Constants.HearBeat
+                                    ).pipe(
+                                        catchError(() => {
+                                            throw new Error('did not receive heartbeat');
+                                        })
+                                    )
+                                ),
+                            );
+                        return concat(init$, merge(heartBeat$, of(isConnected)));
                     }
                     return of(isConnected);
                 }),
                 retryWhen(errs => errs.pipe(
-                    tap(err => logger.error(`while initializing communication ${err.message}`)),
                     delay(5000),
                 )),
-                startWith(false),
                 distinctUntilChanged(),
                 publishReplay(1),
                 refCount(),

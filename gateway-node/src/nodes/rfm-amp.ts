@@ -2,15 +2,13 @@ import * as moment from 'moment';
 import { combineLatest, concat, EMPTY, interval, merge, of } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, ignoreElements, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
-import { PackageLayer } from '../communication/package';
-import { getBaseLayer } from '../util';
+import { getPackageLayer } from '../util';
 
 module.exports = function (RED) {
 
     function AmpNode(config) {
         RED.nodes.createNode(this, config);
-        const base = getBaseLayer(config.port, RED.log);
-        const pckg = new PackageLayer(base);
+        const pckg = getPackageLayer(config.port, RED.log);
         const state = pckg.data.pipe(
             map(msg => {
                 if (msg[0] === 1 && msg.length === 4) {
