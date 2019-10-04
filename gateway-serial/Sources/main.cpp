@@ -31,6 +31,7 @@ static uint8_t radioHead = 0;
 #define FRAME_PACKETSENT            0x93
 #define FRAME_RECEIVEPACKET         0x94
 #define FRAME_INIT                  0x95
+#define FRAME_HB					0x96
 
 #define FRAME_ERR_INVALID_SIZE      0x71
 #define FRAME_ERR_BUSY				0x72
@@ -122,6 +123,9 @@ uint8_t sendRadio(uint8_t to, const uint8_t *data, uint8_t size) {
 void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 	size--;
 	switch (*data++) {
+	case FRAME_HB:
+		serialSendFrame(FRAME_HB, 0, NULL, 0);
+		break;
 	case FRAME_SENDPACKET: {
 		size--;
 		uint8_t to = *data++;
