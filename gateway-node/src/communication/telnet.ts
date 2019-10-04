@@ -1,5 +1,5 @@
 import * as net from 'net';
-import { defer, interval, merge, Observable, of, Subject } from 'rxjs';
+import { interval, merge, Observable, of, Subject } from 'rxjs';
 import { delay, distinctUntilChanged, map, retryWhen, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { Logger } from '../Logger';
@@ -68,12 +68,11 @@ export class Telnet implements ConnectableLayer<Buffer> {
     }
 
     send(data: Buffer): Observable<never> {
-        return defer<never>(() => {
+        return new Observable<never>(observer => {
             if (!this.socket) { throw new Error('telnet: socket not connected'); }
-
-            return new Promise((resolve, reject) => this.socket.write(data, (err) => {
-                if (err) { reject(err); } else { resolve(); }
-            }));
+            this.socket.write(data, (err) => {
+                if (err) { observer.error(err); } else { observer.complete(); }
+            });
         });
     }
 }

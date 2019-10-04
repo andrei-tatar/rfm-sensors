@@ -109,7 +109,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                                     )
                                 ),
                             );
-                        return concat(init$, merge(heartBeat$, of(isConnected)));
+                        return concat(init$, of(isConnected), heartBeat$);
                     }
                     return of(isConnected);
                 }),

@@ -63,13 +63,13 @@ module.exports = function (RED) {
         const connected$ = pckg.connected.pipe(
             switchMap(connected => {
                 if (connected) {
-                    return merge(
-                        pckg.send(Buffer.from([0x01])).pipe(ignoreElements()),
+                    return concat(
+                        pckg.send(Buffer.from([0x01])).pipe(catchError(err => {
+                            RED.log.warn(`rfm-amp: while sync ${err.message}`);
+                            return EMPTY;
+                        })),
                         of(connected),
-                    ).pipe(catchError(err => {
-                        RED.log.warn(`rfm-amp: while sync ${err.message}`);
-                        return EMPTY;
-                    }));
+                    );
                 }
                 return of(connected);
             }),
