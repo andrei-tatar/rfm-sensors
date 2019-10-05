@@ -6,11 +6,11 @@ import {
 } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
 
-    function RawNode(this: Node, config) {
+    function RawNode(this: NodeRedNode, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);

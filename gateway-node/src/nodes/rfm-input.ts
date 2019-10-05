@@ -3,11 +3,11 @@ import { combineLatest, interval } from 'rxjs';
 import { map, startWith, tap, timestamp } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
 
-    function InputNode(this: Node, config) {
+    function InputNode(this: NodeRedNode, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);

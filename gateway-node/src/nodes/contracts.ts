@@ -1,4 +1,4 @@
-export interface Node {
+export interface NodeRedNode {
     on(ev: 'close', callback: (done: any) => void): void;
     on(ev: 'input', callback: (msg: any) => void): void;
     error(msg: string);

@@ -9,7 +9,7 @@ import {
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 import { Logger } from '../Logger';
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 type ThermostatMode = 'off' | 'heat' | 'cool';
 
@@ -87,7 +87,7 @@ const defaultSettings = {
 
 module.exports = function (RED) {
 
-    function MultiThermostatNode(this: Node, config) {
+    function MultiThermostatNode(this: NodeRedNode, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);

@@ -3,11 +3,11 @@ import { combineLatest, concat, EMPTY, interval, Observable, of } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
 import { getPackageLayer } from '../util';
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
 
-    function AmpNode(this: Node, config) {
+    function AmpNode(this: NodeRedNode, config) {
         RED.nodes.createNode(this, config);
         const pckg = getPackageLayer(config.port, RED.log);
         const state = pckg.data.pipe(

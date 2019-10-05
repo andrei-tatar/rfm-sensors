@@ -10,11 +10,11 @@ import {
     map, startWith, switchMap, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
 
-    function DimmerNode(this: Node, config) {
+    function DimmerNode(this: NodeRedNode, config) {
         RED.nodes.createNode(config);
 
         const bridge = RED.nodes.getNode(config.bridge);

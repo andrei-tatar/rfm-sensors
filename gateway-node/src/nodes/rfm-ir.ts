@@ -4,11 +4,11 @@ import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operato
 
 import { getPackageLayer } from '../util';
 import { Decoder } from './../decoders/decoder';
-import { Node } from './node';
+import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
 
-    function IrNode(this: Node, config) {
+    function IrNode(this: NodeRedNode, config) {
         const decoder = new Decoder();
 
         RED.nodes.createNode(this, config);
