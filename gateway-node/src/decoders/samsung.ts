@@ -1,4 +1,6 @@
-export class SamsungDecoder {
+import { IDecoder } from './IDecoder';
+
+export class SamsungDecoder implements IDecoder {
     private static readonly max_error = 15; // %
 
     private static readonly header_mark = 4500;
@@ -14,7 +16,7 @@ export class SamsungDecoder {
         return Math.abs(value - target) / target * 100 < SamsungDecoder.max_error;
     }
 
-    decode(pulses) {
+    decode(pulses: number[]) {
         if (pulses.length !== 67 || !this.matches(pulses[0], SamsungDecoder.header_mark) ||
             !this.matches(pulses[1], SamsungDecoder.header_space)) {
             return null;
@@ -47,11 +49,7 @@ export class SamsungDecoder {
         return 'SAM_' + message.toString(16);
     }
 
-    encode(code) {
-        if (typeof code !== 'string') {
-            return null;
-        }
-
+    encode(code: string) {
         const parts = code.split('_');
         if (parts.length !== 2 || parts[0] !== 'SAM') {
             return null;

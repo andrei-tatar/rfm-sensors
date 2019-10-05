@@ -13,7 +13,7 @@ export class Decoder implements IDecoder {
         this.decoders.push(new SamsungDecoder());
     }
 
-    decode(pulses: number[]): string {
+    decode(pulses: number[]) {
         for (const decoder of this.decoders) {
             const code = decoder.decode(pulses);
             if (code) { return code; }
@@ -21,7 +21,7 @@ export class Decoder implements IDecoder {
         return null;
     }
 
-    encode(code: string): number[] {
+    encode(code: string) {
         for (const decoder of this.decoders) {
             const pulses = decoder.encode(code);
             if (pulses) { return pulses; }

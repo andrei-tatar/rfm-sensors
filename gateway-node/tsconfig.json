@@ -4,6 +4,7 @@
         "noImplicitAny": false,
         "sourceMap": false,
         "noUnusedLocals": true,
+        "strictNullChecks": true,
         "importHelpers": true,
         "target": "es2017",
         "outDir": "dist",

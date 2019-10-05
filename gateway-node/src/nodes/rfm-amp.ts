@@ -1,5 +1,5 @@
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval, of } from 'rxjs';
+import { combineLatest, concat, EMPTY, interval, of, Observable } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
 import { getPackageLayer } from '../util';
@@ -29,7 +29,7 @@ module.exports = function (RED) {
 
         this.on('input', msg => {
 
-            const todo = [];
+            const todo: Observable<any>[] = [];
 
             if (typeof msg !== 'object' || typeof msg.payload !== 'object') {
                 return;

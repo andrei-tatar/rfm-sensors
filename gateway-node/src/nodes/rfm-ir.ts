@@ -46,10 +46,11 @@ module.exports = function (RED) {
                 ).subscribe();
         });
 
-        const subscription = combineLatest(pckg.connected,
+        const subscription = combineLatest([
+            pckg.connected,
             state.pipe(startWith(null)),
-            interval(30000).pipe(startWith(0))
-        ).subscribe(([connected, st]) => {
+            interval(30000).pipe(startWith(0)),
+        ]).subscribe(([connected, st]) => {
             const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
             this.status(connected
                 ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }

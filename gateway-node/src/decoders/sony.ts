@@ -1,4 +1,6 @@
-export class SonyDecoder {
+import { IDecoder } from './IDecoder';
+
+export class SonyDecoder implements IDecoder {
     private static readonly max_error = 15; // %
 
     private static readonly header_mark = 2400;
@@ -38,11 +40,7 @@ export class SonyDecoder {
         return `SONY_${message.toString(16)}_${bits}`;
     }
 
-    encode(code) {
-        if (typeof code !== 'string') {
-            return null;
-        }
-
+    encode(code: string) {
         const parts = code.split('_');
         let bits;
         if (parts.length !== 3 || parts[0] !== 'SONY' || !isFinite(bits = parseInt(parts[2], 10))) {

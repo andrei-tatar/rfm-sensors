@@ -12,7 +12,8 @@ function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer>
     const url = new URL(address);
     switch (url.protocol) {
         case 'serial:':
-            const baudRate = parseInt(url.searchParams.get('baudRate'), 10) || undefined;
+            const baudParam = url.searchParams.get('baudRate');
+            const baudRate = (baudParam != null ? parseInt(baudParam, 10) || undefined : undefined);
             return new SerialLayer(logger, url.pathname, baudRate);
         case 'telnet:':
             const port = parseInt(url.port, 10) || undefined;
@@ -34,9 +35,9 @@ export function getRadioLayer(address: string, logger: Logger): RadioLayer {
     const url = new URL(address);
     const base = getBaseLayer(address, logger);
     const packageLayer = new PackageLayer(base);
-    const key = url.searchParams.get('key');
-    let powerLevel = parseInt(url.searchParams.get('power'), 10);
-    if (isNaN(powerLevel)) { powerLevel = undefined; }
+    const key = url.searchParams.get('key') || undefined;
+    const powerParam = url.searchParams.get('power');
+    const powerLevel = powerParam !== null ? (parseInt(powerParam, 10) || undefined) : undefined;
     const requireHeartbeatEcho = url.searchParams.get('hb') !== null;
     const radioLayer = new RadioLayer(packageLayer, logger, { key, powerLevel, requireHeartbeatEcho });
     return radioLayer;

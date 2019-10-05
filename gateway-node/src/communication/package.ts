@@ -11,11 +11,11 @@ enum RxStatus {
 
 interface State {
     status: RxStatus;
-    buffer: Buffer;
+    buffer: Buffer | null;
     size: number;
     offset: number;
     chkSum: number;
-    received: Buffer;
+    received: Buffer | null;
     last: number;
 }
 
@@ -37,8 +37,8 @@ export class PackageLayer implements ConnectableLayer<Buffer> {
                 last: 0,
                 received: null,
             } as State),
-            filter(v => v.received !== null),
             map(v => v.received),
+            filter(Buffer.isBuffer),
             share()
         );
 
@@ -73,8 +73,8 @@ export class PackageLayer implements ConnectableLayer<Buffer> {
                     state.status = RxStatus.Data;
                     break;
                 case RxStatus.Data:
-                    state.offset = state.buffer.writeUInt8(data, state.offset);
-                    if (state.offset === state.buffer.length) { state.status = RxStatus.Checksum1; }
+                    state.offset = state.buffer!.writeUInt8(data, state.offset);
+                    if (state.offset === state.buffer!.length) { state.status = RxStatus.Checksum1; }
                     break;
                 case RxStatus.Checksum1:
                     state.chkSum = data << 8;
@@ -82,7 +82,7 @@ export class PackageLayer implements ConnectableLayer<Buffer> {
                     break;
                 case RxStatus.Checksum2:
                     state.chkSum |= data;
-                    const checksum = this.getChecksum(state.buffer);
+                    const checksum = this.getChecksum(state.buffer!);
                     if (checksum === state.chkSum) {
                         state.received = state.buffer;
                         state.buffer = null;

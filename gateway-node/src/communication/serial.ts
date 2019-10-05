@@ -7,7 +7,7 @@ import { Logger } from '../Logger';
 import { ConnectableLayer } from './message';
 
 export class SerialLayer implements ConnectableLayer<Buffer> {
-    private _serial: SerialPort;
+    private _serial: SerialPort | null;
     private _data = new Subject<Buffer>();
 
     readonly data = this._data.asObservable();

@@ -131,7 +131,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
         return defer(() => {
             const aux = Buffer.alloc(100);
             let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
-            const key = this._config.key && Buffer.from(this._config.key, 'hex');
+            const key: Buffer | undefined = this._config.key ? Buffer.from(this._config.key, 'hex') : undefined;
             if (key !== void 0) {
                 if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
                 offset = aux.writeUInt8('K'.charCodeAt(0), offset);
@@ -192,6 +192,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                     case Constants.Err_Mem: throw new Error(`gw memory full`);
                     case Constants.Err_Timeout: throw new Error(`timeout. no ack (${addr})`);
                 }
+                return false;
             });
     }
 

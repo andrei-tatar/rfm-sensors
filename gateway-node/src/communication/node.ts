@@ -37,14 +37,14 @@ export class RadioNode implements ConnectableLayer<Buffer> {
             );
     }
 
-    upload(hex: Buffer, progress: Observer<number> = null) {
+    upload(hex: Buffer, progress: Observer<number> | null = null) {
         const header = Buffer.from('FLXIMG:99:');
         const data: Buffer = require('intel-hex').parse(hex).data;
         header.writeUInt16BE(data.length, 7);
         const chunkSize = 52;
         const chunks = Math.ceil(data.length / chunkSize);
         let currentStep = 0;
-        const reportStepInc = () => progress.next(currentStep++ / (chunks + 3) * 100);
+        const reportStepInc = () => progress && progress.next(currentStep++ / (chunks + 3) * 100);
         const reportStepWhenDone = progress
             ? (obs: Observable<any>) => obs.pipe(tap(() => { }, () => { }, () => {
                 reportStepInc();
@@ -80,6 +80,7 @@ export class RadioNode implements ConnectableLayer<Buffer> {
                     const r = p.data;
                     if (r.length === 1 && r[0] === 0xCA) { return true; }
                     if (r.length === 2 && r[0] === 0xCA && r[1] === 0xE1) { throw new Error('no flash chip present'); }
+                    return false;
                 }),
                 first(),
                 timeout(timeoutTime),

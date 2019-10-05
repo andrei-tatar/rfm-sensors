@@ -15,7 +15,7 @@ export class NecDecoder implements IDecoder {
         return Math.abs(value - target) / target * 100 < NecDecoder.max_error;
     }
 
-    decode(pulses: number[]): string {
+    decode(pulses: number[]) {
         if (pulses.length < 3) {
             return null;
         }
@@ -63,10 +63,7 @@ export class NecDecoder implements IDecoder {
         return 'NEC_' + message.toString(16);
     }
 
-    encode(code: string): number[] {
-        if (typeof code !== 'string') {
-            return null;
-        }
+    encode(code: string) {
 
         const parts = code.split('_');
         if (parts.length !== 2 || parts[0] !== 'NEC') {
