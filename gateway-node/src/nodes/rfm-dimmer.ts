@@ -15,7 +15,7 @@ import { NodeRedNode } from './contracts';
 module.exports = function (RED) {
 
     function DimmerNode(this: NodeRedNode, config) {
-        RED.nodes.createNode(config);
+        RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
