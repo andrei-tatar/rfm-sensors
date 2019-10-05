@@ -6,10 +6,11 @@ import {
 } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
+import { Node } from './node';
 
 module.exports = function (RED) {
 
-    function RawNode(config) {
+    function RawNode(this: Node, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);
@@ -21,20 +22,20 @@ module.exports = function (RED) {
         const updateStatus = new Subject();
         let uploading = false;
 
-        combineLatest(nodeLayer.connected,
+        combineLatest([
+            nodeLayer.connected,
             merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
-            interval(30000).pipe(startWith(0)))
-            .pipe(
-                takeUntil(stop),
-                filter(() => !uploading)
-            )
-            .subscribe(([isConnected, msg]) => {
-                const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
+            interval(30000).pipe(startWith(0)),
+        ]).pipe(
+            takeUntil(stop),
+            filter(() => !uploading)
+        ).subscribe(([isConnected, msg]) => {
+            const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
-                this.status(isConnected
-                    ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
-                    : { fill: 'red', shape: 'ring', text: 'not connected' });
-            });
+            this.status(isConnected
+                ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
+                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        });
 
         nodeLayer.data.pipe(takeUntil(stop))
             .subscribe(data =>

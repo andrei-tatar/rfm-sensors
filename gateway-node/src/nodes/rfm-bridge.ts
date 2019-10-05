@@ -3,9 +3,10 @@ import { Subject } from 'rxjs';
 import { RadioNode } from '../communication/node';
 import { RadioLayer } from '../communication/radio';
 import { getRadioLayer } from './../util';
+import { Node } from './node';
 
 module.exports = function (RED) {
-    function BridgeNode(config) {
+    function BridgeNode(this: Node & { create(addr: number): RadioNode }, config) {
         RED.nodes.createNode(this, config);
         const radioLayers = new Map<string, RadioLayer>();
         const close$ = new Subject();

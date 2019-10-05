@@ -10,10 +10,12 @@ import {
     map, startWith, switchMap, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
+import { Node } from './node';
+
 module.exports = function (RED) {
 
-    function DimmerNode(config) {
-        RED.nodes.createNode(this, config);
+    function DimmerNode(this: Node, config) {
+        RED.nodes.createNode(config);
 
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
@@ -33,7 +35,7 @@ module.exports = function (RED) {
             nodeLayer.send(Buffer.from([4, ledBrightness])), // set led bright
         );
 
-        combineLatest(nodeLayer.connected, periodicSync)
+        combineLatest([nodeLayer.connected, periodicSync])
             .pipe(
                 takeUntil(stop),
                 switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 20) * 2000) : NEVER),
@@ -47,13 +49,14 @@ module.exports = function (RED) {
         const updateStatus = new Subject();
         let uploading = false;
 
-        combineLatest(nodeLayer.connected,
+        combineLatest([
+            nodeLayer.connected,
             merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
-            interval(30000).pipe(startWith(0)))
-            .pipe(
-                takeUntil(stop),
-                filter(() => !uploading)
-            )
+            interval(30000).pipe(startWith(0)),
+        ]).pipe(
+            takeUntil(stop),
+            filter(() => !uploading)
+        )
             .subscribe(([isConnected, msg]) => {
                 const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 

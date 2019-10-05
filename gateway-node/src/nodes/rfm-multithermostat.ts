@@ -9,6 +9,7 @@ import {
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 import { Logger } from '../Logger';
+import { Node } from './node';
 
 type ThermostatMode = 'off' | 'heat' | 'cool';
 
@@ -86,7 +87,7 @@ const defaultSettings = {
 
 module.exports = function (RED) {
 
-    function MultiThermostatNode(config) {
+    function MultiThermostatNode(this: Node, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);
@@ -104,10 +105,9 @@ module.exports = function (RED) {
         }
 
         const close$ = new Subject();
-        const createNodeObservables: typeof createObservableNodes = createObservableNodes.bind(this);
-        const nodes$ = createNodeObservables(useSettings, bridge.create);
+        const nodes$ = createObservableNodes(useSettings, bridge.create);
 
-        combineLatest(nodes$.connected$, nodes$.enable$, nodes$.on$).pipe(
+        combineLatest([nodes$.connected$, nodes$.enable$, nodes$.on$]).pipe(
             takeUntil(close$)
         ).subscribe(([connected, enable, on]) => {
             const text = `connected ${connected.connected}/${connected.from} (E:${enable},O:${on})`;
@@ -132,21 +132,19 @@ module.exports = function (RED) {
             })),
         ).subscribe();
 
-        const sendNodeChange: typeof sendChange = sendChange.bind(this);
-
         const requireHeating: Observable<boolean>[] = [];
         for (const roomKey of Object.keys(nodes$.rooms)) {
             const room: RoomObservable = nodes$.rooms[roomKey];
 
-            sendNodeChange(room.mode$, roomKey, mode => ({ mode }));
-            sendNodeChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
-            sendNodeChange(combineLatest(room.temperature$, room.humidity$), roomKey,
+            sendChange(room.mode$, roomKey, mode => ({ mode }));
+            sendChange(room.setpoint$, roomKey, setpoint => ({ setpoint }));
+            sendChange(combineLatest([room.temperature$, room.humidity$]), roomKey,
                 ([temperature, humidity]) => ({ temperature, humidity })
             );
-            sendNodeChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
-            sendNodeChange(room.valveBattery$, `battery:valve-${roomKey}`);
+            sendChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
+            sendChange(room.valveBattery$, `battery:valve-${roomKey}`);
 
-            const requireHeating$ = combineLatest(room.temperature$, room.setpoint$, room.mode$).pipe(
+            const requireHeating$ = combineLatest([room.temperature$, room.setpoint$, room.mode$]).pipe(
                 debounceTime(0),
                 scan<[number, number, ThermostatMode], boolean>((needsHeating, [temperature, setpoint, mode]) => {
                     if (mode !== 'heat') { return false; }
@@ -167,7 +165,7 @@ module.exports = function (RED) {
                 refCount(),
             );
 
-            combineLatest(requireHeating$, nodes$.heaterOn$, nodes$.enable$).pipe(
+            combineLatest([requireHeating$, nodes$.heaterOn$, nodes$.enable$]).pipe(
                 debounceTime(500),
                 takeUntil(close$),
             ).subscribe(([needsHeating, heaterOn, heaterEnabled]) => {
@@ -183,13 +181,13 @@ module.exports = function (RED) {
 
             requireHeating.push(requireHeating$);
         }
-        combineLatest(...requireHeating).pipe(
+        combineLatest(requireHeating).pipe(
             map(needHeating => needHeating.some(r => r)),
             takeUntil(close$),
         ).subscribe(nodes$.on$);
 
-        sendNodeChange(nodes$.enable$, 'enable');
-        sendNodeChange(nodes$.heaterOn$, 'heater');
+        sendChange(nodes$.enable$, 'enable');
+        sendChange(nodes$.heaterOn$, 'heater');
 
         this.on('input', msg => {
             if (typeof msg !== 'object') { return; }
@@ -214,11 +212,12 @@ module.exports = function (RED) {
             close$.complete();
         });
 
+        const node = this;
         function sendChange<T>(observable: Observable<T>, topic: string, getPayload: (value: T) => any = v => v) {
             observable.pipe(
                 debounceTime(0),
                 takeUntil(close$),
-            ).subscribe(value => this.send({
+            ).subscribe(value => node.send({
                 topic,
                 payload: getPayload(value),
             }));
@@ -286,7 +285,7 @@ module.exports = function (RED) {
                     return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
                         .pipe(
                             catchError(err => {
-                                this.error(`while updating ${key} valve: ${err}`);
+                                node.error(`while updating ${key} valve: ${err}`);
                                 return EMPTY;
                             })
                         );
@@ -301,7 +300,7 @@ module.exports = function (RED) {
                     offset = response.writeUInt8(setpoint, offset);
                     return thermostat.send(response).pipe(
                         catchError(err => {
-                            this.error(`while responding to thermostat ${key}: ${err}`);
+                            node.error(`while responding to thermostat ${key}: ${err}`);
                             return EMPTY;
                         })
                     );
@@ -315,7 +314,7 @@ module.exports = function (RED) {
                     room.setpoint$.next((setpoint + 100) / 10);
                 });
 
-                combineLatest(room.mode$, room.setpoint$).pipe(
+                combineLatest([room.mode$, room.setpoint$]).pipe(
                     debounceTime(0),
                     takeUntil(close$),
                 ).subscribe(([mode, setpoint]) => {
@@ -332,7 +331,7 @@ module.exports = function (RED) {
                 enable$,
                 rooms,
                 histerezis: settings.histerezis,
-                heaterOn$: combineLatest(on$, enable$).pipe(
+                heaterOn$: combineLatest([on$, enable$]).pipe(
                     debounceTime(0),
                     map(([on, enable]) => on && enable),
                     distinctUntilChanged(),
@@ -355,13 +354,13 @@ module.exports = function (RED) {
                 settingsSubject.next(settings);
             });
 
-            combineLatest(
+            combineLatest([
                 nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
                 interval(60000).pipe(startWith(0))
-            ).pipe(
+            ]).pipe(
                 switchMap(([on]) =>
                     heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
-                        this.error(`while updating heater state: ${err}`);
+                        node.error(`while updating heater state: ${err}`);
                         return EMPTY;
                     }))
                 ),

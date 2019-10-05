@@ -1,12 +1,13 @@
 import * as moment from 'moment';
-import { combineLatest, concat, EMPTY, interval, of, Observable } from 'rxjs';
+import { combineLatest, concat, EMPTY, interval, Observable, of } from 'rxjs';
 import { catchError, distinctUntilChanged, filter, map, startWith, switchMap, tap, timestamp } from 'rxjs/operators';
 
 import { getPackageLayer } from '../util';
+import { Node } from './node';
 
 module.exports = function (RED) {
 
-    function AmpNode(config) {
+    function AmpNode(this: Node, config) {
         RED.nodes.createNode(this, config);
         const pckg = getPackageLayer(config.port, RED.log);
         const state = pckg.data.pipe(
@@ -21,9 +22,7 @@ module.exports = function (RED) {
                 return null;
             }),
             filter(msg => !!msg),
-            tap(s => {
-                this.send({ payload: s });
-            }),
+            tap(s => this.send({ payload: s })),
             timestamp()
         );
 
@@ -76,11 +75,11 @@ module.exports = function (RED) {
             distinctUntilChanged(),
         );
 
-        const subscription = combineLatest(
+        const subscription = combineLatest([
             connected$,
             state.pipe(startWith(null)),
-            interval(30000).pipe(startWith(0))
-        ).subscribe(([connected, st]) => {
+            interval(30000).pipe(startWith(0)),
+        ]).subscribe(([connected, st]) => {
             const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
             this.status(connected
                 ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }

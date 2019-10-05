@@ -3,10 +3,11 @@ import { combineLatest, interval } from 'rxjs';
 import { map, startWith, tap, timestamp } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
+import { Node } from './node';
 
 module.exports = function (RED) {
 
-    function InputNode(config) {
+    function InputNode(this: Node, config) {
         RED.nodes.createNode(this, config);
 
         const bridge = RED.nodes.getNode(config.bridge);
@@ -59,15 +60,16 @@ module.exports = function (RED) {
                 timestamp()
             );
 
-        const subscription = combineLatest(nodeLayer.connected,
+        const subscription = combineLatest([
+            nodeLayer.connected,
             stateObservable.pipe(startWith(null)),
-            interval(30000).pipe(startWith(0)))
-            .subscribe(([isConnected, state]) => {
-                const lastMessage = state ? `(${moment(state.timestamp).fromNow()})` : '';
-                this.status(isConnected
-                    ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
-                    : { fill: 'red', shape: 'ring', text: 'not connected' });
-            });
+            interval(30000).pipe(startWith(0)),
+        ]).subscribe(([isConnected, state]) => {
+            const lastMessage = state ? `(${moment(state.timestamp).fromNow()})` : '';
+            this.status(isConnected
+                ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
+                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        });
 
         this.on('close', () => subscription.unsubscribe());
     }
