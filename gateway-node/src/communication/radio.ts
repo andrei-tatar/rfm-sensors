@@ -1,8 +1,7 @@
-import { concat, EMPTY, interval, merge, Observable, of, Subject, defer, throwError } from 'rxjs';
+import { concat, defer, EMPTY, interval, merge, Observable, of, Subject, throwError } from 'rxjs';
 import {
-    catchError, concatMap, delay, distinctUntilChanged,
-    filter, first, ignoreElements, map, publishReplay,
-    refCount, retryWhen, share, switchMap, tap, timeout
+    catchError, concatMap, delay, distinctUntilChanged, filter, first, ignoreElements,
+    map, publishReplay, refCount, retryWhen, share, switchMap, tap, timeout
 } from 'rxjs/operators';
 
 import { Logger } from '../Logger';
@@ -43,7 +42,12 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             concatMap(p => {
                 if (p[0] === Constants.Rsp_Init && this._config) {
                     this.logger.warn('serial bridge reset; init again');
-                    return this.reinit();
+                    return this.init().pipe(
+                        catchError(err => {
+                            this.logger.warn(`radio.reset-init: error: ${err.message}`);
+                            return EMPTY;
+                        }),
+                    );
                 }
                 return of(p);
             }),
@@ -56,22 +60,40 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             share(),
         );
 
-    readonly connected: Observable<boolean>;
+    readonly connected = this.below.connected
+        .pipe(
+            switchMap(isConnected => {
+                if (isConnected) {
+                    return concat(
+                        this.init(),
+                        of(isConnected),
+                        this.heartBeat(),
+                    );
+                }
+                return of(isConnected);
+            }),
+            retryWhen(errs => errs.pipe(
+                tap(err => this.logger.warn(`radio: reconnecting ${err.message}`)),
+                delay(5000),
+            )),
+            distinctUntilChanged(),
+            publishReplay(1),
+            refCount(),
+        );
 
     constructor(
         private below: ConnectableLayer<Buffer>,
         private logger: Logger,
         {
             key,
-            power = 31,
+            powerLevel = 31,
             heartBeatInterval = 60e3,
             requireHeartbeatEcho = false,
-        }: {
-            key: string, power?: number,
-            heartBeatInterval?: number,
-            requireHeartbeatEcho?: boolean,
-        },
+            freq,
+            networkId,
+        }: RadioConfig = {},
     ) {
+        this._config = { key, powerLevel, heartBeatInterval, requireHeartbeatEcho, freq, networkId };
         this._sendQueue
             .pipe(
                 concatMap(msg =>
@@ -86,45 +108,30 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                 )
             )
             .subscribe();
-        this.connected = this.below.connected
-            .pipe(
-                switchMap(isConnected => {
-                    if (isConnected) {
-                        const init$ = this
-                            .init({
-                                key: key && Buffer.from(key, 'hex'),
-                                powerLevel: power,
-                            });
-                        const heartBeat$ = !requireHeartbeatEcho
-                            ? EMPTY
-                            : interval(heartBeatInterval).pipe(
-                                switchMap(() =>
-                                    this.sendPacketAndWaitFor(
-                                        Buffer.from([Constants.HeartBeat]),
-                                        p => p.length === 2 && p[0] === Constants.HeartBeat
-                                    ).pipe(
-                                        catchError(() => {
-                                            return throwError(new Error('did not receive heartbeat'));
-                                        })
-                                    )
-                                ),
-                            );
-                        return concat(init$, of(isConnected), heartBeat$);
-                    }
-                    return of(isConnected);
-                }),
-                retryWhen(errs => errs.pipe(delay(5000))),
-                distinctUntilChanged(),
-                publishReplay(1),
-                refCount(),
+    }
+
+    private heartBeat(): Observable<never> {
+        return this._config.requireHeartbeatEcho
+            ? EMPTY
+            : interval(this._config.heartBeatInterval).pipe(
+                switchMap(() =>
+                    this.sendPacketAndWaitFor(
+                        Buffer.from([Constants.HeartBeat]),
+                        p => p.length === 2 && p[0] === Constants.HeartBeat
+                    ).pipe(
+                        catchError(() => {
+                            return throwError(new Error('did not receive heartbeat'));
+                        })
+                    )
+                ),
             );
     }
 
-    private init({ key, freq, networkId, powerLevel }: RadioConfig = {}): Observable<never> {
+    private init(): Observable<never> {
         return defer(() => {
-            this._config = { key, freq, networkId, powerLevel };
             const aux = Buffer.alloc(100);
             let offset = aux.writeUInt8(Constants.Cmd_Configure, 0);
+            const key = this._config.key && Buffer.from(this._config.key, 'hex');
             if (key !== void 0) {
                 if (key.length !== 16) { throw new Error(`Invalid AES-128 key size (${key.length})`); }
                 offset = aux.writeUInt8('K'.charCodeAt(0), offset);
@@ -133,17 +140,17 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                 offset = aux.writeUInt8('R'.charCodeAt(0), offset);
                 offset += aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
             }
-            if (freq !== void 0) {
+            if (this._config.freq !== void 0) {
                 offset = aux.writeUInt8('F'.charCodeAt(0), offset);
-                offset = aux.writeUInt32LE(freq, offset);
+                offset = aux.writeUInt32LE(this._config.freq, offset);
             }
-            if (networkId !== void 0) {
+            if (this._config.networkId !== void 0) {
                 offset = aux.writeUInt8('N'.charCodeAt(0), offset);
-                offset = aux.writeUInt8(networkId, offset);
+                offset = aux.writeUInt8(this._config.networkId, offset);
             }
-            if (powerLevel !== void 0) {
+            if (this._config.powerLevel !== void 0) {
                 offset = aux.writeUInt8('P'.charCodeAt(0), offset);
-                offset = aux.writeUInt8(powerLevel, offset);
+                offset = aux.writeUInt8(this._config.powerLevel, offset);
             }
             if (offset !== 0) {
                 const configure = Buffer.alloc(offset);
@@ -165,16 +172,6 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                 reject: err => observer.error(err),
             });
         });
-    }
-
-    private reinit() {
-        return this.init(this._config)
-            .pipe(
-                catchError(err => {
-                    this.logger.warn(`radio.reset-init: error: ${err.message}`);
-                    return EMPTY;
-                }),
-            );
     }
 
     private sendInternal({ data, addr }: SendMessage) {
@@ -218,8 +215,10 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
 }
 
 interface RadioConfig {
-    key?: Buffer;
+    key?: string;
     freq?: number;
     networkId?: number;
     powerLevel?: number;
+    heartBeatInterval?: number;
+    requireHeartbeatEcho?: boolean;
 }
