@@ -62,16 +62,10 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
 
     readonly connected = this.below.connected
         .pipe(
-            switchMap(isConnected => {
-                if (isConnected) {
-                    return concat(
-                        this.init(),
-                        of(isConnected),
-                        this.heartBeat(),
-                    );
-                }
-                return of(isConnected);
-            }),
+            switchMap(isConnected => isConnected
+                ? concat(this.init(), of(isConnected), this.heartBeat())
+                : of(isConnected)
+            ),
             retryWhen(errs => errs.pipe(
                 tap(err => this.logger.warn(`radio: reconnecting ${err.message}`)),
                 delay(5000),
@@ -96,22 +90,21 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
         this._config = { key, powerLevel, heartBeatInterval, requireHeartbeatEcho, freq, networkId };
         this._sendQueue
             .pipe(
-                concatMap(msg =>
-                    this.sendInternal(msg)
-                        .pipe(
-                            tap(() => { }, () => { }, () => msg.resolve()),
-                            catchError(err => {
-                                msg.reject(err);
-                                return EMPTY;
-                            })
-                        )
+                concatMap(msg => this.sendInternal(msg)
+                    .pipe(
+                        tap(() => { }, () => { }, () => msg.resolve()),
+                        catchError(err => {
+                            msg.reject(err);
+                            return EMPTY;
+                        }),
+                    )
                 )
             )
             .subscribe();
     }
 
     private heartBeat(): Observable<never> {
-        return this._config.requireHeartbeatEcho
+        return !this._config.requireHeartbeatEcho
             ? EMPTY
             : interval(this._config.heartBeatInterval).pipe(
                 switchMap(() =>
