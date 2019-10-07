@@ -81,7 +81,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
         {
             key,
             powerLevel = 31,
-            heartBeatInterval = 60e3,
+            heartBeatInterval = 15e3,
             requireHeartbeatEcho = false,
             freq,
             networkId,

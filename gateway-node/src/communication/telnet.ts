@@ -27,7 +27,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 return fwd;
             }),
             retryWhen(errs => errs.pipe(
-                tap(err => this.logger.info(`telnet: error, trying to reconnect: ${err.message}`)),
+                tap(err => this.logger.info(`telnet: error ${this.host}, trying to reconnect: ${err.message}`)),
                 delay(this.reconnectInterval),
             )),
             distinctUntilChanged(),
@@ -55,7 +55,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
             });
             this.logger.info(`telnet: connecting to ${this.host}:${this.port}`);
             socket.connect(this.port, this.host, async () => {
-                this.logger.info('telnet: connected');
+                this.logger.info(`telnet: connected ${this.host}`);
                 this.socket = socket;
                 observer.next(socket);
             });
