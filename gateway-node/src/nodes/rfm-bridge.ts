@@ -12,7 +12,11 @@ module.exports = function (RED) {
         const close$ = new Subject();
 
         this.create = (address: number) => {
-            const connectionString = address < 1000 ? config.port : config.port1;
+            const portToUse = Math.floor(address / 1000);
+            const connectionString = config[`port${portToUse || ''}`];
+            if (!connectionString) {
+                throw new Error(`no connection string for port ${portToUse}`);
+            }
             let radioLayer = radioLayers.get(connectionString);
             if (!radioLayer) {
                 radioLayer = getRadioLayer(connectionString, RED.log);
