@@ -1,8 +1,8 @@
-import { URL } from 'url';
+import { URL, URLSearchParams } from 'url';
 
 import { ConnectableLayer } from './communication/message';
 import { PackageLayer } from './communication/package';
-import { RadioConfig, RadioLayer } from './communication/radio';
+import { RadioLayer } from './communication/radio';
 import { SerialLayer } from './communication/serial';
 import { Telnet } from './communication/telnet';
 import { DebugLayer } from './DebugLayer';
@@ -12,8 +12,7 @@ function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer>
     const url = new URL(address);
     switch (url.protocol) {
         case 'serial:':
-            const baudParam = url.searchParams.get('baudRate');
-            const baudRate = (baudParam != null ? parseInt(baudParam, 10) || undefined : undefined);
+            const baudRate = readParamAsNumber(url.searchParams, 'baudRate');
             return new SerialLayer(logger, url.pathname, baudRate);
         case 'telnet:':
             const port = parseInt(url.port, 10) || undefined;
@@ -31,19 +30,26 @@ export function getPackageLayer(address: string, logger: Logger): PackageLayer {
     return pckg;
 }
 
-export function getRadioLayer(address: string, logger: Logger, override: RadioConfig): RadioLayer {
+export function getRadioLayer(address: string, logger: Logger): RadioLayer {
     const url = new URL(address);
     const base = getBaseLayer(address, logger);
     const packageLayer = new PackageLayer(base);
     const key = url.searchParams.get('key') || undefined;
-    const powerParam = url.searchParams.get('power');
-    const powerLevel = powerParam !== null ? (parseInt(powerParam, 10) || undefined) : undefined;
     const requireHeartbeatEcho = url.searchParams.get('hb') !== null;
     const radioLayer = new RadioLayer(packageLayer, logger, {
         key,
-        powerLevel,
+        powerLevel: readParamAsNumber(url.searchParams, 'power'),
+        freq: readParamAsNumber(url.searchParams, 'freq'),
+        networkId: readParamAsNumber(url.searchParams, 'id'),
         requireHeartbeatEcho,
-        ...override,
     });
     return radioLayer;
+}
+
+function readParamAsNumber(params: URLSearchParams, name: string): number | undefined {
+    const value = params.get(name);
+    if (value === null) { return undefined; }
+    const numberValue = parseFloat(value);
+    if (!isFinite(numberValue) || isNaN(numberValue)) { return undefined; }
+    return numberValue;
 }
