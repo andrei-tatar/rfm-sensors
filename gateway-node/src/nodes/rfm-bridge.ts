@@ -19,7 +19,7 @@ module.exports = function (RED) {
             }
             let radioLayer = radioLayers.get(connectionString);
             if (!radioLayer) {
-                radioLayer = getRadioLayer(connectionString, RED.log);
+                radioLayer = getRadioLayer(connectionString, RED.log, { networkId: portToUse + 1 });
                 radioLayers.set(connectionString, radioLayer);
             }
             return new RadioNode(radioLayer, address % 1000);
