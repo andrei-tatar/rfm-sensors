@@ -158,8 +158,8 @@ void onSerialPacketReceived(const uint8_t* data, uint8_t size) {
 				data += 4;
 				size -= 4;
 				break;
-			case 'N': //network ID
-				radio.setNetwork(*data++);
+			case 'N':
+				radio.setAddress(*data++);
 				size--;
 				break;
 			case 'P':
