@@ -131,7 +131,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
                 offset += key.copy(aux, offset);
 
                 offset = aux.writeUInt8('R'.charCodeAt(0), offset);
-                offset += aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
+                offset = aux.writeUInt16LE(Math.floor(Math.random() * 65536), offset);
             }
             if (this._config.freq !== void 0) {
                 offset = aux.writeUInt8('F'.charCodeAt(0), offset);
