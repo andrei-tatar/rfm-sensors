@@ -2,7 +2,7 @@ import { URL } from 'url';
 
 import { ConnectableLayer } from './communication/message';
 import { PackageLayer } from './communication/package';
-import { RadioLayer } from './communication/radio';
+import { RadioConfig, RadioLayer } from './communication/radio';
 import { SerialLayer } from './communication/serial';
 import { Telnet } from './communication/telnet';
 import { DebugLayer } from './DebugLayer';
@@ -31,7 +31,7 @@ export function getPackageLayer(address: string, logger: Logger): PackageLayer {
     return pckg;
 }
 
-export function getRadioLayer(address: string, logger: Logger): RadioLayer {
+export function getRadioLayer(address: string, logger: Logger, override: RadioConfig): RadioLayer {
     const url = new URL(address);
     const base = getBaseLayer(address, logger);
     const packageLayer = new PackageLayer(base);
@@ -39,13 +39,11 @@ export function getRadioLayer(address: string, logger: Logger): RadioLayer {
     const powerParam = url.searchParams.get('power');
     const powerLevel = powerParam !== null ? (parseInt(powerParam, 10) || undefined) : undefined;
     const requireHeartbeatEcho = url.searchParams.get('hb') !== null;
-    const networkParam = url.searchParams.get('n');
-    const network = networkParam ? (parseInt(networkParam, 10) || undefined) : undefined;
     const radioLayer = new RadioLayer(packageLayer, logger, {
         key,
         powerLevel,
         requireHeartbeatEcho,
-        networkId: network,
+        ...override,
     });
     return radioLayer;
 }

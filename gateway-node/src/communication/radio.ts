@@ -208,7 +208,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
     }
 }
 
-interface RadioConfig {
+export interface RadioConfig {
     key?: string;
     freq?: number;
     networkId?: number;
