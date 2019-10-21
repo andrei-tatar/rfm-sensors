@@ -40,7 +40,7 @@ export function getRadioLayer(address: string, logger: Logger): RadioLayer {
     const powerLevel = powerParam !== null ? (parseInt(powerParam, 10) || undefined) : undefined;
     const requireHeartbeatEcho = url.searchParams.get('hb') !== null;
     const freqParam = url.searchParams.get('freq');
-    const freq = freqParam ? (parseInt(freqParam, 10) || undefined) : undefined;
+    const freq = freqParam ? (parseFloat(freqParam) || undefined) : undefined;
     const radioLayer = new RadioLayer(packageLayer, logger, {
         key,
         powerLevel,
