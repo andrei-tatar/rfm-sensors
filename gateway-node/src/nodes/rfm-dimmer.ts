@@ -38,7 +38,7 @@ module.exports = function (RED) {
         combineLatest([nodeLayer.connected, periodicSync])
             .pipe(
                 takeUntil(stop),
-                switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 20) * 2000) : NEVER),
+                switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 120) * 500) : NEVER),
                 switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
                     return EMPTY;
@@ -56,14 +56,13 @@ module.exports = function (RED) {
         ]).pipe(
             takeUntil(stop),
             filter(() => !uploading)
-        )
-            .subscribe(([isConnected, msg]) => {
-                const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
+        ).subscribe(([isConnected, msg]) => {
+            const lastMessage = msg.value ? `(${moment(msg.timestamp).fromNow()})` : '';
 
-                this.status(isConnected
-                    ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
-                    : { fill: 'red', shape: 'ring', text: 'not connected' });
-            });
+            this.status(isConnected
+                ? { fill: 'green', shape: 'dot', text: `connected ${lastMessage}` }
+                : { fill: 'red', shape: 'ring', text: 'not connected' });
+        });
 
         nodeLayer.data
             .pipe(

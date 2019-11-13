@@ -4,8 +4,8 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { BehaviorSubject, combineLatest, EMPTY, interval, Observable, Subject } from 'rxjs';
 import {
-    catchError, debounceTime, distinctUntilChanged, filter, map,
-    publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil
+    catchError, debounceTime, delayWhen, distinctUntilChanged, filter,
+    map, publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 import { Logger } from '../Logger';
@@ -150,7 +150,7 @@ module.exports = function (RED) {
                     if (mode !== 'heat') { return false; }
 
                     const setpointLow = setpoint - useSettings.histerezis;
-                    const setpointHigh = setpoint + useSettings.histerezis;
+                    const setpointHigh = setpoint;
                     if (needsHeating) {
                         if (temperature >= setpointHigh) { return false; }
                     } else {
@@ -356,7 +356,7 @@ module.exports = function (RED) {
 
             combineLatest([
                 nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
-                interval(60000).pipe(startWith(0))
+                interval(60000).pipe(delayWhen(_ => interval(Math.ceil(Math.random() * 60) * 500))),
             ]).pipe(
                 switchMap(([on]) =>
                     heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {
