@@ -79,7 +79,7 @@ void zeroCross()
 
 void setup()
 {
-    delay(1000); //wait for power to stabilize
+    sensor.sleep(5); //wait for power to stabilize
     sensor.init();
     sensor.onMessage(onData);
 
