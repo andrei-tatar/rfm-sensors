@@ -31,8 +31,8 @@ interface HeatingSettings {
 
 interface ObservableNodes<T extends HeatingSettings> {
     settings$: Observable<HeatingSettings>;
-    enable$: BehaviorSubject<boolean>;
-    on$: BehaviorSubject<boolean>;
+    enableHeating$: BehaviorSubject<boolean>;
+    requireHeating$: BehaviorSubject<boolean>;
     heaterOn$: Observable<boolean>;
     histerezis: number;
     connected$: Observable<{ connected: number; from: number; }>;
@@ -107,7 +107,7 @@ module.exports = function (RED) {
         const close$ = new Subject();
         const nodes$ = createObservableNodes(useSettings, bridge.create);
 
-        combineLatest([nodes$.connected$, nodes$.enable$, nodes$.on$]).pipe(
+        combineLatest([nodes$.connected$, nodes$.enableHeating$, nodes$.requireHeating$]).pipe(
             takeUntil(close$)
         ).subscribe(([connected, enable, on]) => {
             const text = `connected ${connected.connected}/${connected.from} (E:${enable},O:${on})`;
@@ -144,20 +144,22 @@ module.exports = function (RED) {
             sendChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
             sendChange(room.valveBattery$, `battery:valve-${roomKey}`);
 
-            const requireHeating$ = combineLatest([room.temperature$, room.setpoint$, room.mode$]).pipe(
+            const roomRequireHeating$ = combineLatest([room.temperature$, room.setpoint$, room.mode$, nodes$.requireHeating$]).pipe(
                 debounceTime(0),
-                scan<[number, number, ThermostatMode], boolean>((needsHeating, [temperature, setpoint, mode]) => {
+                distinctUntilChanged((a, b) => isEqual(a, b)),
+                scan((prevNeedsHeating, [temperature, setpoint, mode, generalRequireHeating]) => {
                     if (mode !== 'heat') { return false; }
 
                     const setpointLow = setpoint - useSettings.histerezis;
                     const setpointHigh = setpoint;
-                    if (needsHeating) {
+                    if (prevNeedsHeating) {
                         if (temperature >= setpointHigh) { return false; }
                     } else {
+                        if (generalRequireHeating && temperature < setpointHigh) { return true; }
                         if (temperature <= setpointLow) { return true; }
                     }
 
-                    return needsHeating;
+                    return prevNeedsHeating;
                 }, false),
                 startWith(false),
                 distinctUntilChanged(),
@@ -165,7 +167,7 @@ module.exports = function (RED) {
                 refCount(),
             );
 
-            combineLatest([requireHeating$, nodes$.heaterOn$, nodes$.enable$]).pipe(
+            combineLatest([roomRequireHeating$, nodes$.heaterOn$, nodes$.enableHeating$]).pipe(
                 debounceTime(500),
                 takeUntil(close$),
             ).subscribe(([needsHeating, heaterOn, heaterEnabled]) => {
@@ -179,21 +181,22 @@ module.exports = function (RED) {
                 }
             });
 
-            requireHeating.push(requireHeating$);
+            requireHeating.push(roomRequireHeating$);
         }
         combineLatest(requireHeating).pipe(
             map(needHeating => needHeating.some(r => r)),
+            distinctUntilChanged(),
             takeUntil(close$),
-        ).subscribe(nodes$.on$);
+        ).subscribe(nodes$.requireHeating$);
 
-        sendChange(nodes$.enable$, 'enable');
+        sendChange(nodes$.enableHeating$, 'enable');
         sendChange(nodes$.heaterOn$, 'heater');
 
         this.on('input', msg => {
             if (typeof msg !== 'object') { return; }
 
             if (msg.topic === 'enable') {
-                nodes$.enable$.next(!!msg.payload);
+                nodes$.enableHeating$.next(!!msg.payload);
             }
 
             if (msg.topic in nodes$.rooms) {
@@ -237,8 +240,8 @@ module.exports = function (RED) {
                 publishReplay(1),
                 refCount(),
             );
-            const on$ = new BehaviorSubject(false);
-            const enable$ = new BehaviorSubject(settings.enable);
+            const requireHeating$ = new BehaviorSubject(false);
+            const enableHeating$ = new BehaviorSubject(settings.enable);
 
             const rooms: any = {};
             const connectedDevices: Observable<boolean>[] = [];
@@ -327,11 +330,11 @@ module.exports = function (RED) {
 
             const nodes: ObservableNodes<T> = {
                 settings$,
-                on$,
-                enable$,
+                requireHeating$,
+                enableHeating$,
                 rooms,
                 histerezis: settings.histerezis,
-                heaterOn$: combineLatest([on$, enable$]).pipe(
+                heaterOn$: combineLatest([requireHeating$, enableHeating$]).pipe(
                     debounceTime(0),
                     map(([on, enable]) => on && enable),
                     distinctUntilChanged(),
@@ -348,7 +351,7 @@ module.exports = function (RED) {
                 ),
             };
 
-            nodes.enable$.pipe(skip(1), takeUntil(close$)).subscribe(enable => {
+            nodes.enableHeating$.pipe(skip(1), takeUntil(close$)).subscribe(enable => {
                 settings = cloneDeep(settings);
                 settings.enable = enable;
                 settingsSubject.next(settings);
