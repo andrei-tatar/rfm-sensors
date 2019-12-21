@@ -109,7 +109,7 @@ bool commLoop()
             return false;
         }
 
-        if (abs(temperature - lastTemperature) > 64 ||
+        if (abs(temperature - lastTemperature) > 25 ||
             abs(humidity - lastHumidity) > 200 ||
             abs(pressure - lastPressure) > 30 ||
             skippedSends >= 30)
