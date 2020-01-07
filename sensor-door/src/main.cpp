@@ -27,9 +27,12 @@ void loop()
     uint8_t state = !digitalRead(PIN_INPUT);
     msg[3] = state;
 
+    uint16_t sleep = 1800;
     sensor.powerUp();
-    sensor.sendAndWait(msg, sizeof(msg));
+    sleep = sensor.sendAndWait(msg, sizeof(msg))
+        ? 1800
+        : 1;
     sensor.powerDown();
 
-    sensor.sleep(1800);
+    sensor.sleep(sleep);
 }
