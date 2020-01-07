@@ -5,34 +5,39 @@
 
 Sensor sensor(false);
 
-void inputStateChanged()
-{
-    sensor.wake();
-}
-
 void setup()
 {
     sensor.init();
-    pinMode(PIN_INPUT, INPUT);
-    digitalWrite(PIN_INPUT, HIGH);
-    attachInterrupt(digitalPinToInterrupt(PIN_INPUT), inputStateChanged, CHANGE);
+    pinMode(PIN_INPUT, INPUT_PULLUP);
 }
 
 void loop()
 {
-    uint8_t msg[4] = {'B', 0, 'S', 0};
-    uint16_t voltage = sensor.readVoltage();
-    msg[1] = voltage / 10 - 100;
-
+    static uint8_t lastState = 0xFF;
     uint8_t state = !digitalRead(PIN_INPUT);
-    msg[3] = state;
+    uint16_t skipSends = 0;
 
-    uint16_t sleep = 1800;
-    sensor.powerUp();
-    sleep = sensor.sendAndWait(msg, sizeof(msg))
-        ? 1800
-        : 1;
-    sensor.powerDown();
+    if (state != lastState || skipSends > 30 * 60)
+    {
+        lastState = state;
+        skipSends = 0;
 
-    sensor.sleep(sleep);
+        uint8_t msg[4] = {'B', 0, 'S', 0};
+        uint16_t voltage = sensor.readVoltage();
+        msg[1] = voltage / 10 - 100;
+        msg[3] = state;
+
+        sensor.powerUp();
+        if (!sensor.sendAndWait(msg, sizeof(msg)))
+        {
+            lastState = 0xFF;
+        }
+        sensor.powerDown();
+    }
+    else
+    {
+        skipSends++;
+    }
+
+    sensor.sleep(1);
 }
