@@ -128,7 +128,10 @@ bool commLoop()
             msg[5] = pressure >> 8;
             msg[6] = pressure;
             msg[7] = sensor.readVoltage() / 10 - 100;
-            sensor.sendAndWait(msg, sizeof(msg));
+            if (!sensor.sendAndWait(msg, sizeof(msg)))
+            {
+                skippedSends = 30;
+            }
             sensor.powerDown();
         }
         else
