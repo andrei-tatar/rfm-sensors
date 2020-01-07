@@ -162,11 +162,11 @@ module.exports = function (RED) {
                     return prevNeedsHeating;
                 }, false),
                 startWith(false),
-                distinctUntilChanged(),
                 timeout(timeSpan(40, 'min')),
                 retryWhen(err$ => err$.pipe(
                     tap(_ => logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`)),
                 )),
+                distinctUntilChanged(),
                 publishReplay(1),
                 refCount(),
             );
