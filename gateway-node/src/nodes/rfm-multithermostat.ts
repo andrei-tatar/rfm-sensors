@@ -5,10 +5,11 @@ import { join } from 'path';
 import { BehaviorSubject, combineLatest, EMPTY, interval, Observable, Subject } from 'rxjs';
 import {
     catchError, debounceTime, delayWhen, distinctUntilChanged, filter,
-    map, publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil
+    map, publishReplay, refCount, retryWhen, scan, skip, startWith, switchMap, takeUntil, tap, timeout
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 import { Logger } from '../Logger';
+import { timeSpan } from '../util';
 import { NodeRedNode } from './contracts';
 
 type ThermostatMode = 'off' | 'heat' | 'cool';
@@ -146,7 +147,6 @@ module.exports = function (RED) {
 
             const roomRequireHeating$ = combineLatest([room.temperature$, room.setpoint$, room.mode$, nodes$.requireHeating$]).pipe(
                 debounceTime(0),
-                distinctUntilChanged((a, b) => isEqual(a, b)),
                 scan((prevNeedsHeating, [temperature, setpoint, mode, generalRequireHeating]) => {
                     if (mode !== 'heat') { return false; }
 
@@ -163,6 +163,10 @@ module.exports = function (RED) {
                 }, false),
                 startWith(false),
                 distinctUntilChanged(),
+                timeout(timeSpan(31, 'min')),
+                retryWhen(err$ => err$.pipe(
+                    tap(_ => logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`)),
+                )),
                 publishReplay(1),
                 refCount(),
             );
@@ -358,8 +362,8 @@ module.exports = function (RED) {
             });
 
             combineLatest([
-                nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(5000)),
-                interval(60000).pipe(delayWhen(_ => interval(Math.ceil(Math.random() * 60) * 500))),
+                nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(timeSpan(5, 'sec'))),
+                interval(timeSpan(1, 'min')).pipe(delayWhen(_ => interval(Math.ceil(Math.random() * 60) * 500))),
             ]).pipe(
                 switchMap(([on]) =>
                     heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {

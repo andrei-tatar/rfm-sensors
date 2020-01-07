@@ -3,6 +3,7 @@ import { combineLatest, interval } from 'rxjs';
 import { map, startWith, tap, timestamp } from 'rxjs/operators';
 
 import { RadioNode } from '../communication/node';
+import { timeSpan } from '../util';
 import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
@@ -63,7 +64,7 @@ module.exports = function (RED) {
         const subscription = combineLatest([
             nodeLayer.connected,
             stateObservable.pipe(startWith(null)),
-            interval(30000).pipe(startWith(0)),
+            interval(timeSpan(30, 'sec')).pipe(startWith(0)),
         ]).subscribe(([isConnected, state]) => {
             const lastMessage = state ? `(${moment(state.timestamp).fromNow()})` : '';
             this.status(isConnected

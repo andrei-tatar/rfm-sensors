@@ -4,6 +4,7 @@ import {
     finalize, first, map, materialize, retry, tap, timeout
 } from 'rxjs/operators';
 
+import { timeSpan } from '../util';
 import { ConnectableLayer } from './message';
 import { RadioLayer } from './radio';
 
@@ -71,7 +72,7 @@ export class RadioNode implements ConnectableLayer<Buffer> {
         );
     }
 
-    private beginOta(timeoutTime = 2000) {
+    private beginOta(timeoutTime = timeSpan(2, 'sec')) {
         // begin OTA, erase flash
         const waitForReply$ = this.below.data
             .pipe(

@@ -5,6 +5,7 @@ import {
 } from 'rxjs/operators';
 
 import { Logger } from '../Logger';
+import { timeSpan } from '../util';
 import { ConnectableLayer } from './message';
 
 interface SendMessage {
@@ -68,7 +69,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             ),
             retryWhen(errs => errs.pipe(
                 tap(err => this.logger.warn(`radio: reconnecting ${err.message}`)),
-                delay(5000),
+                delay(timeSpan(5, 'sec')),
             )),
             distinctUntilChanged(),
             publishReplay(1),

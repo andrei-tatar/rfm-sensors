@@ -4,6 +4,7 @@ import { delay, distinctUntilChanged, map, retryWhen, startWith } from 'rxjs/ope
 import * as SerialPort from 'serialport';
 
 import { Logger } from '../Logger';
+import { timeSpan } from '../util';
 import { ConnectableLayer } from './message';
 
 export class SerialLayer implements ConnectableLayer<Buffer> {
@@ -15,7 +16,7 @@ export class SerialLayer implements ConnectableLayer<Buffer> {
         map(() => true),
         startWith(false),
         distinctUntilChanged(),
-        retryWhen(err => err.pipe(delay(5000))),
+        retryWhen(err => err.pipe(delay(timeSpan(5, 'sec')))),
     );
 
     constructor(

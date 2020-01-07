@@ -24,6 +24,25 @@ function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer>
     }
 }
 
+export function timeSpan(value = 1, unit: 'day' | 'hour' | 'min' | 'sec' = 'sec') {
+    if (unit === 'day') {
+        value *= 24;
+        unit = 'hour';
+    }
+
+    if (unit === 'hour') {
+        value *= 60;
+        unit = 'min';
+    }
+
+    if (unit === 'min') {
+        value *= 60;
+        unit = 'sec';
+    }
+
+    return value * 1000;
+}
+
 export function getPackageLayer(address: string, logger: Logger): PackageLayer {
     const base = getBaseLayer(address, logger);
     const pckg = new PackageLayer(base, true);

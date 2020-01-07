@@ -10,6 +10,7 @@ import {
     map, startWith, switchMap, takeUntil, throttleTime, timestamp
 } from 'rxjs/operators';
 
+import { timeSpan } from '../util';
 import { NodeRedNode } from './contracts';
 
 module.exports = function (RED) {
@@ -21,7 +22,7 @@ module.exports = function (RED) {
         if (!bridge) { return; }
 
         const nodeLayer: RadioNode = bridge.create(parseInt(config.address, 10));
-        const periodicSync = interval(10 * 60000).pipe(startWith(0));
+        const periodicSync = interval(timeSpan(10, 'min')).pipe(startWith(0));
         const stop = new Subject();
 
         let ledBrightness = config.ledbrightness;
@@ -52,7 +53,7 @@ module.exports = function (RED) {
         combineLatest([
             nodeLayer.connected,
             merge(nodeLayer.data.pipe(startWith(null)), updateStatus).pipe(timestamp()),
-            interval(30000).pipe(startWith(0)),
+            interval(timeSpan(30, 'sec')).pipe(startWith(0)),
         ]).pipe(
             takeUntil(stop),
             filter(() => !uploading)
@@ -91,7 +92,7 @@ module.exports = function (RED) {
             if (msg.topic === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
-                progress.pipe(throttleTime(1000)).subscribe(p => {
+                progress.pipe(throttleTime(timeSpan(1, 'sec'))).subscribe(p => {
                     this.status({ fill: 'green', shape: 'dot', text: `upload ${Math.round(p)} %` });
                 });
                 uploading = true;
@@ -103,7 +104,7 @@ module.exports = function (RED) {
                         this.error(`while uploading hex: ${err.message}`);
                         return of(null);
                     }),
-                    delay(5000),
+                    delay(timeSpan(5, 'sec')),
                     finalize(() => {
                         uploading = false;
                         updateStatus.next();

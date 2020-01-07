@@ -7,8 +7,8 @@
             "name": "Win32",
             "includePath": [
                 "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
-                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
                 "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
+                "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
                 "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/Adafruit_BME280",
                 "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/sensor",
                 "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/radio",
@@ -28,8 +28,8 @@
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
                     "d:/Proiecte/rfm-sensors/sensor-thermostat/src",
-                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
                     "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/touch",
+                    "d:/Proiecte/rfm-sensors/sensor-thermostat/lib/rtc",
                     "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/Adafruit_BME280",
                     "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/sensor",
                     "d:/Proiecte/rfm-sensors/sensor-thermostat/.pio/libdeps/pro8MHzatmega328/radio",

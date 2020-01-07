@@ -2,7 +2,7 @@ import * as moment from 'moment';
 import { combineLatest, EMPTY, interval } from 'rxjs';
 import { catchError, filter, map, startWith, tap, timestamp } from 'rxjs/operators';
 
-import { getPackageLayer } from '../util';
+import { getPackageLayer, timeSpan } from '../util';
 import { Decoder } from './../decoders/decoder';
 import { NodeRedNode } from './contracts';
 
@@ -50,7 +50,7 @@ module.exports = function (RED) {
         const subscription = combineLatest([
             pckg.connected,
             state.pipe(startWith(null)),
-            interval(30000).pipe(startWith(0)),
+            interval(timeSpan(30, 'sec')).pipe(startWith(0)),
         ]).subscribe(([connected, st]) => {
             const lastMessage = st ? `(${moment(st.timestamp).fromNow()})` : '';
             this.status(connected

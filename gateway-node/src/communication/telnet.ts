@@ -3,6 +3,7 @@ import { concat, interval, Observable, of, Subject } from 'rxjs';
 import { delay, distinctUntilChanged, map, retryWhen, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { Logger } from '../Logger';
+import { timeSpan } from '../util';
 import { ConnectableLayer } from './message';
 
 export class Telnet implements ConnectableLayer<Buffer> {
@@ -37,7 +38,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
         private logger: Logger,
         private host: string,
         private port: number = 23,
-        private reconnectInterval: number = 5000,
+        private reconnectInterval: number = timeSpan(5, 'sec'),
     ) {
     }
 
