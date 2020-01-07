@@ -31,7 +31,7 @@ export class RadioNode implements ConnectableLayer<Buffer> {
             .pipe(
                 catchError(err => throwError(err).pipe(
                     materialize(),
-                    delay(200),
+                    delay(timeSpan(.2, 'sec')),
                     dematerialize()
                 )),
                 retry(retryCount),

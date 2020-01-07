@@ -190,7 +190,7 @@ export class RadioLayer implements ConnectableLayer<{ addr: number, data: Buffer
             });
     }
 
-    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeoutTime: number = 1200) {
+    private sendPacketAndWaitFor(packet: Buffer, verifyReply: (packet: Buffer) => boolean, timeoutTime = timeSpan(1.2, 'sec')) {
         const waitForReply$ = this.below.data.pipe(
             filter(p => verifyReply(p)),
             first(),

@@ -19,7 +19,7 @@ export class Telnet implements ConnectableLayer<Buffer> {
                 const fwd = of(isConnected);
                 if (isConnected) {
                     return concat(fwd,
-                        interval(200e3).pipe(
+                        interval(timeSpan(3, 'min')).pipe(
                             // some data to keep telnet alive
                             switchMap(_ => this.send(Buffer.from([0xDE, 0x5B, 0x01, 0xFF, 0x40, 0x79]))),
                         )

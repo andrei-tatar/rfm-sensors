@@ -163,7 +163,7 @@ module.exports = function (RED) {
                 }, false),
                 startWith(false),
                 distinctUntilChanged(),
-                timeout(timeSpan(31, 'min')),
+                timeout(timeSpan(40, 'min')),
                 retryWhen(err$ => err$.pipe(
                     tap(_ => logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`)),
                 )),
@@ -172,7 +172,7 @@ module.exports = function (RED) {
             );
 
             combineLatest([roomRequireHeating$, nodes$.heaterOn$, nodes$.enableHeating$]).pipe(
-                debounceTime(500),
+                debounceTime(timeSpan(.5, 'sec')),
                 takeUntil(close$),
             ).subscribe(([needsHeating, heaterOn, heaterEnabled]) => {
                 if (!heaterEnabled) {
@@ -361,9 +361,12 @@ module.exports = function (RED) {
                 settingsSubject.next(settings);
             });
 
+            const periodicUpdate$ = interval(timeSpan(1, 'min')).pipe(
+                delayWhen(_ => interval(timeSpan(Math.random() * 30, 'sec')))
+            );
             combineLatest([
                 nodes.heaterOn$.pipe(distinctUntilChanged(), debounceTime(timeSpan(5, 'sec'))),
-                interval(timeSpan(1, 'min')).pipe(delayWhen(_ => interval(Math.ceil(Math.random() * 60) * 500))),
+                periodicUpdate$,
             ]).pipe(
                 switchMap(([on]) =>
                     heater.send(Buffer.from([on ? 1 : 0])).pipe(catchError(err => {

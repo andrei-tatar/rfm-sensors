@@ -1,6 +1,7 @@
 import { defer } from 'rxjs';
 import { filter, map, publishReplay, refCount, scan, share } from 'rxjs/operators';
 
+import { timeSpan } from '../util';
 import { ConnectableLayer } from './message';
 
 const FrameHeader1 = 0xDE, FrameHeader2 = 0x5B;
@@ -54,7 +55,7 @@ export class PackageLayer implements ConnectableLayer<Buffer> {
 
     private processReceivedData(state: State, rx: Buffer) {
         const now = new Date().getTime();
-        if (now - state.last > 300) {
+        if (now - state.last > timeSpan(.3, 'sec')) {
             state.status = RxStatus.Idle;
         }
         state.last = now;

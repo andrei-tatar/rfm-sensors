@@ -39,7 +39,7 @@ module.exports = function (RED) {
         combineLatest([nodeLayer.connected, periodicSync])
             .pipe(
                 takeUntil(stop),
-                switchMap(([isConnected]) => isConnected ? timer(Math.round(Math.random() * 120) * 500) : NEVER),
+                switchMap(([isConnected]) => isConnected ? timer(timeSpan(Math.random(), 'min')) : NEVER),
                 switchMap(_ => syncState().pipe(catchError(err => {
                     this.error(`while sync: ${err.message}`);
                     return EMPTY;

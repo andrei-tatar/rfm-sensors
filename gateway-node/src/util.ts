@@ -24,7 +24,7 @@ function getBaseLayer(address: string, logger: Logger): ConnectableLayer<Buffer>
     }
 }
 
-export function timeSpan(value = 1, unit: 'day' | 'hour' | 'min' | 'sec' = 'sec') {
+export function timeSpan(value: number, unit: 'day' | 'hour' | 'min' | 'sec') {
     if (unit === 'day') {
         value *= 24;
         unit = 'hour';
