@@ -27,7 +27,7 @@ module.exports = function (RED) {
 
         let ledBrightness = config.ledbrightness;
         let mode = 0;
-        if (config.manualdim) { mode |= 0x01; }
+        if (config.manualdimm) { mode |= 0x01; }
         if (!config.manual) { mode |= 0x02; }
 
         const syncState = () => concat(
@@ -89,7 +89,18 @@ module.exports = function (RED) {
             });
 
         this.on('input', msg => {
-            if (msg.topic === 'firmware') {
+            if (msg.topic === 'min-light') {
+                nodeLayer
+                    .send(Buffer.from([5, msg.payload.brightness, msg.payload.timeout]))
+                    .pipe(
+                        catchError(err => {
+                            this.error(`while setting led bright: ${err.message}`);
+                            return EMPTY;
+                        }),
+                        takeUntil(stop),
+                    )
+                    .subscribe();
+            } else if (msg.topic === 'firmware') {
                 const hex = Buffer.isBuffer(msg.payload) ? msg.payload : Buffer.from(msg.payload);
                 const progress = new Subject<number>();
                 progress.pipe(throttleTime(timeSpan(1, 'sec'))).subscribe(p => {
