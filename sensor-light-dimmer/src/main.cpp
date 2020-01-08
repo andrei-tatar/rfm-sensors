@@ -14,6 +14,7 @@ Sensor sensor(false);
 #define CMD_GET 2
 #define CMD_SET_MODE 3
 #define CMD_SET_LED 4
+#define CMD_MIN_LIGHT 5
 
 #define MODE_MAN_DIMMER 0x01  //enable manual dimming
 #define MODE_DISABLE_MAN 0x02 //disable manual control
@@ -28,6 +29,8 @@ static volatile uint8_t mode = 0;
 static volatile uint8_t modeNoDimmerBrightness = 100;
 
 static uint8_t ledBrightness = 255;
+static uint8_t minBrightness = 0;
+static uint32_t minBrightnessReset = 0;
 
 void setLedBrightness(uint8_t brightness);
 
@@ -55,26 +58,50 @@ void onData(const uint8_t *data, uint8_t length, uint8_t rssi)
             brightness = data[1];
         updateLed();
     }
-    if (data[0] == CMD_GET && length == 1)
+    else if (data[0] == CMD_GET && length == 1)
     {
         sendState();
     }
-    if (data[0] == CMD_SET_MODE && length == 3)
+    else if (data[0] == CMD_SET_MODE && length == 3)
     {
         mode = data[1];
         modeNoDimmerBrightness = data[2];
     }
-    if (data[0] == CMD_SET_LED && length == 2)
+    else if (data[0] == CMD_SET_LED && length == 2)
     {
         setLedBrightness(data[1]);
     }
+    else if (data[0] == CMD_MIN_LIGHT && length == 3)
+    {
+        minBrightness = data[1];
+        minBrightnessReset = millis() + data[2] * 1000UL;
+    }
 }
+
+static const uint8_t powerToTicks[100] = {
+    75, 72, 71, 70, 69, 68, 68, 67, 66, 66, 65, 65, 64, 64, 63, 63, 62, 62, 62, 61,
+    61, 60, 60, 60, 59, 59, 58, 58, 58, 57, 57, 57, 56, 56, 56, 55, 55, 55, 54, 54,
+    54, 53, 53, 53, 52, 52, 52, 51, 51, 51, 50, 50, 50, 49, 49, 49, 48, 48, 48, 47,
+    47, 47, 46, 46, 46, 45, 45, 45, 44, 44, 44, 43, 43, 43, 42, 42, 41, 41, 41, 40,
+    40, 39, 39, 39, 38, 38, 37, 37, 36, 36, 35, 35, 34, 34, 33, 33, 32, 31, 30, 29};
 
 void zeroCross()
 {
     TCNT1 = 0;
     OCR1A = timerDelay;
     next = true;
+
+    static uint8_t current = 0;
+    uint8_t target = max(brightness, minBrightness);
+    if (current != target)
+    {
+        if (current < target)
+            current++;
+        else if (current > target)
+            current--;
+
+        timerDelay = current ? powerToTicks[current - 1] * 200 : 0xFFFF;
+    }
 }
 
 void setup()
@@ -132,42 +159,6 @@ ISR(TIMER2_OVF_vect)
 {
     updateLed();
     DDRD |= 1 << PIN_LED;
-}
-
-static const uint8_t powerToTicks[100] PROGMEM = {
-    75, 72, 71, 70, 69, 68, 68, 67, 66, 66, 65, 65, 64, 64, 63, 63, 62, 62, 62, 61,
-    61, 60, 60, 60, 59, 59, 58, 58, 58, 57, 57, 57, 56, 56, 56, 55, 55, 55, 54, 54,
-    54, 53, 53, 53, 52, 52, 52, 51, 51, 51, 50, 50, 50, 49, 49, 49, 48, 48, 48, 47,
-    47, 47, 46, 46, 46, 45, 45, 45, 44, 44, 44, 43, 43, 43, 42, 42, 41, 41, 41, 40,
-    40, 39, 39, 39, 38, 38, 37, 37, 36, 36, 35, 35, 34, 34, 33, 33, 32, 31, 30, 29};
-
-void handleRamp(uint32_t now)
-{
-    static uint32_t lastChange;
-    if (now - lastChange >= 15)
-    {
-        lastChange = now;
-
-        static uint8_t current = 0;
-        if (current != brightness)
-        {
-            if (current < brightness)
-                current++;
-            else if (current > brightness)
-                current--;
-
-            uint16_t nextDelay = current
-                                     ? pgm_read_byte(&powerToTicks[current - 1]) * 200
-                                     : 0xFFFF;
-
-            if (nextDelay != timerDelay)
-            {
-                cli();
-                timerDelay = nextDelay;
-                sei();
-            }
-        }
-    }
 }
 
 void setLedBrightness(uint8_t newLedBrightness)
@@ -302,7 +293,12 @@ void loop()
     wdt_reset();
     auto now = millis();
 
-    handleRamp(now);
+    if (minBrightness && now >= minBrightnessReset)
+    {
+        minBrightness = 0;
+        minBrightnessReset = 0;
+    }
+
     if (handleTouchEvents())
     {
         sendState();
