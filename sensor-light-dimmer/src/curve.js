@@ -1,6 +1,6 @@
-const GAMMA = 2.8;
+const GAMMA = 2;
 
-const MIN = 9e-3; //sec
+const MIN = 9.5e-3; //sec
 const MAX = .1e-3; //sec
 const TIMER = 2e6; //Hz
 
