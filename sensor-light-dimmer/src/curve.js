@@ -1,7 +1,7 @@
 const GAMMA = 2;
 
-const MIN = 9.5e-3; //sec
-const MAX = .1e-3; //sec
+const MIN = 7.5e-3; //sec
+const MAX = 2.9e-3; //sec
 const TIMER = 2e6; //Hz
 
 const brightness = new Array(100).fill(0).map((_, i) => i + 1);
