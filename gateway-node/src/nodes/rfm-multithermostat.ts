@@ -94,6 +94,7 @@ module.exports = function (RED) {
         const bridge = RED.nodes.getNode(config.bridge);
         if (!bridge) { return; }
 
+        const node = this;
         let useSettings = defaultSettings;
 
         const settingsFile = join(homedir(), 'thermostat-settings.json');
@@ -128,7 +129,7 @@ module.exports = function (RED) {
             switchMap(data => new Promise(resolve => {
                 writeFile(settingsFile, data, err => {
                     if (err) { this.error(`while saving settings: ${err}`); }
-                    resolve();
+                    resolve(null);
                 });
             })),
         ).subscribe();
@@ -164,7 +165,13 @@ module.exports = function (RED) {
                 startWith(false),
                 timeout(timeSpan(40, 'min')),
                 retryWhen(err$ => err$.pipe(
-                    tap(_ => logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`)),
+                    tap(_ => {
+                        logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`);
+                        node.send({
+                            topic: 'error',
+                            msg: `Timeout expecting read from thermostat. Room: ${roomKey}`,
+                        });
+                    }),
                 )),
                 distinctUntilChanged(),
                 publishReplay(1),
@@ -219,7 +226,6 @@ module.exports = function (RED) {
             close$.complete();
         });
 
-        const node = this;
         function sendChange<T>(observable: Observable<T>, topic: string, getPayload: (value: T) => any = v => v) {
             observable.pipe(
                 debounceTime(0),
