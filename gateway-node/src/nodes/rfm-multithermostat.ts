@@ -2,10 +2,13 @@ import { writeFile } from 'fs';
 import { cloneDeep, isEqual } from 'lodash';
 import { homedir } from 'os';
 import { join } from 'path';
-import { BehaviorSubject, combineLatest, EMPTY, interval, Observable, Subject } from 'rxjs';
 import {
-    catchError, debounceTime, delayWhen, distinctUntilChanged, filter,
-    map, publishReplay, refCount, retryWhen, scan, skip, startWith, switchMap, takeUntil, tap, timeout
+    BehaviorSubject, combineLatest, concat, defer, EMPTY,
+    interval, Observable, of, Subject, timer
+} from 'rxjs';
+import {
+    catchError, debounceTime, delayWhen, distinctUntilChanged, filter, ignoreElements,
+    map, publishReplay, refCount, scan, skip, startWith, switchMap, takeUntil, tap
 } from 'rxjs/operators';
 import { RadioNode } from '../communication/node';
 import { Logger } from '../Logger';
@@ -146,10 +149,30 @@ module.exports = function (RED) {
             sendChange(room.thermostatBattery$, `battery:thermostat-${roomKey}`);
             sendChange(room.valveBattery$, `battery:valve-${roomKey}`);
 
-            const roomRequireHeating$ = combineLatest([room.temperature$, room.setpoint$, room.mode$, nodes$.requireHeating$]).pipe(
+            const timeout$ = timer(timeSpan(40, 'min')).pipe(
+                tap(_ => {
+                    logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`);
+                    node.send({
+                        topic: 'error',
+                        payload: `Timeout expecting thermostat. ${roomKey}`,
+                    });
+                }),
+                ignoreElements(),
+            );
+
+            const temperature$ = room.temperature$.pipe(
+                switchMap(temp => concat(of(temp), timeout$, of(NaN))),
+            );
+
+            const roomRequireHeating$ = combineLatest([
+                temperature$,
+                room.setpoint$,
+                room.mode$,
+                nodes$.requireHeating$,
+            ]).pipe(
                 debounceTime(0),
                 scan((prevNeedsHeating, [temperature, setpoint, mode, generalRequireHeating]) => {
-                    if (mode !== 'heat') { return false; }
+                    if (mode !== 'heat' || isNaN(temperature)) { return false; }
 
                     const setpointLow = setpoint - useSettings.histerezis;
                     const setpointHigh = setpoint;
@@ -163,16 +186,6 @@ module.exports = function (RED) {
                     return prevNeedsHeating;
                 }, false),
                 startWith(false),
-                timeout(timeSpan(40, 'min')),
-                retryWhen(err$ => err$.pipe(
-                    tap(_ => {
-                        logger.warn(`timeout expecting read from thermostat. room: ${roomKey}`);
-                        node.send({
-                            topic: 'error',
-                            msg: `Timeout expecting read from thermostat. Room: ${roomKey}`,
-                        });
-                    }),
-                )),
                 distinctUntilChanged(),
                 publishReplay(1),
                 refCount(),
@@ -292,7 +305,7 @@ module.exports = function (RED) {
                 rooms[key as keyof T['rooms']] = room;
 
                 const valvePoll$ = valve.data;
-                valvePoll$.pipe(switchMap(_ => {
+                const valveReply$ = defer(() => {
                     const valvePercent = Math.max(0, Math.min(100, Math.round(room.valveOpenPercent$.value)));
                     const temperature = room.mode$.value === 'heat' ? Math.round(room.setpoint$.value * 10) : 0;
                     return valve.send(Buffer.from([0xDE, valvePercent, temperature >> 8, temperature & 0xFF]))
@@ -302,7 +315,29 @@ module.exports = function (RED) {
                                 return EMPTY;
                             })
                         );
-                }), takeUntil(close$)).subscribe();
+                });
+
+                const valveTimeout$ = timer(timeSpan(10, 'min')).pipe(
+                    tap(_ => {
+                        logger.warn(`timeout expecting poll from valve. room: ${key}`);
+                        node.send({
+                            topic: 'error',
+                            payload: `Timeout expecting valve. ${key}`,
+                        });
+                    }),
+                    ignoreElements(),
+                );
+
+                const turnOffHeating$ = defer(() => {
+                    if (room.mode$.value === 'heat') {
+                        room.mode$.next('off');
+                    }
+                });
+
+                valvePoll$.pipe(
+                    switchMap(_ => concat(valveReply$, valveTimeout$, turnOffHeating$)),
+                    takeUntil(close$),
+                ).subscribe();
 
                 const thermostatPoll$ = thermostat.data.pipe(filter(m => m.length === 1 && m[0] === 2));
                 thermostatPoll$.pipe(switchMap(_ => {

@@ -24,7 +24,7 @@
     "lodash": "^4.17.15",
     "moment": "^2.22.2",
     "rxjs": "^6.6.6",
-    "serialport": "^9.0.7",
+    "serialport": "7.0.2",
     "tslib": "^2.1.0"
   },
   "node-red": {
